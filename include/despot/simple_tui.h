@@ -141,7 +141,7 @@ public:
   virtual DSPOMDP* InitializeModel(option::Option* options) = 0;
   virtual void InitializeDefaultParameters() = 0;
 
-  Solver* InitializeSolver(DSPOMDP* model, std::string solver_type,
+  virtual Solver* InitializeSolver(DSPOMDP* model, std::string solver_type,
                            option::Option* options);
 
   int run(int argc, char* argv[]);
@@ -150,7 +150,7 @@ public:
                    std::string& simulator_type, std::string& belief_type, int& time_limit,
                    std::string& solver_type, bool& search_solver);
 
-  void InitializeEvaluator(Evaluator*& simulator, option::Option* options,
+  virtual void InitializeEvaluator(Evaluator*& simulator, option::Option* options,
                            DSPOMDP* model, Solver* solver, int num_runs,
                            clock_t main_clock_start, std::string simulator_type,
                            std::string belief_type, int time_limit,
