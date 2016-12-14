@@ -136,7 +136,12 @@ Evaluator::~Evaluator() {
 
 
 bool Evaluator::RunStep(int step, int round) {
-	if (target_finish_time_ != -1 && get_time_second() > target_finish_time_) {
+	
+	*out_ << "-----------------------------------Round " << round
+				<< " Step " << step << "-----------------------------------"
+				<< endl;  
+  
+if (target_finish_time_ != -1 && get_time_second() > target_finish_time_) {
 		if (!Globals::config.silence && out_)
 			*out_ << "Exit. (Total time "
 				<< (get_time_second() - EvalLog::curr_inst_start_time)
@@ -167,9 +172,7 @@ bool Evaluator::RunStep(int step, int round) {
 		<< endl;
 
 	start_t = get_time_second();
-	*out_ << "-----------------------------------Round " << round
-				<< " Step " << step << "-----------------------------------"
-				<< endl;
+
 	if (!Globals::config.silence && out_) {
 		*out_ << "- Action = ";
 		model_->PrintAction(action, *out_);
