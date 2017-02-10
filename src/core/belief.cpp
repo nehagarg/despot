@@ -335,12 +335,16 @@ void ParticleBelief::Update(int action, OBS_TYPE obs) {
 	double reward;
 	OBS_TYPE o;
 	// Update particles
+        std::cout << "Updating particles" << std::endl;
 	for (int i = 0; i <particles_.size(); i++) {
 		State* particle = particles_[i];
+                //model_->PrintState(*particle);
 		bool terminal = model_->Step(*particle, Random::RANDOM.NextDouble(),
 			action, reward, o);
+                //model_->PrintState(*particle);
 		double prob = model_->ObsProb(obs, *particle, action);
-
+                //std::cout << "Obs Prob:" <<  prob << std::endl;
+                
 		if (!terminal && prob) { // Terminal state is not required to be explicitly represented and may not have any observation
 			particle->weight *= prob;
 			total_weight += particle->weight;
@@ -350,7 +354,7 @@ void ParticleBelief::Update(int action, OBS_TYPE obs) {
 		}
 	}
 
-	logd << "[ParticleBelief::Update] " << updated.size()
+	logi << "[ParticleBelief::Update] " << updated.size()
 		<< " particles survived among " << particles_.size() << endl;
 	particles_ = updated;
 
@@ -403,6 +407,8 @@ void ParticleBelief::Update(int action, OBS_TYPE obs) {
 	// Resample if the effective number of particles is "small"
 	double num_effective_particles = 1.0 / weight_square_sum;
 	if (num_effective_particles < num_particles_ / 2.0) {
+             logi << "Resampling because effective number of particles (" << num_effective_particles << ") is small" << endl;
+
 		vector<State*> new_belief = Belief::Sample(num_particles_, particles_,
 			model_);
 		for (int i = 0; i < particles_.size(); i++)

@@ -458,14 +458,17 @@ QNode* DESPOT::Prune(QNode* qnode, double& pruned_value) {
 }
 
 ValuedAction DESPOT::OptimalAction(VNode* vnode) {
+  std::cout << "Optimal Action: " << "Default action " << vnode->default_move().action << " Lowerbound " << vnode->default_move().value <<std::endl;
+
 	ValuedAction astar(-1, Globals::NEG_INFTY);
 	for (int action = 0; action < vnode->children().size(); action++) {
 		QNode* qnode = vnode->Child(action);
+		std::cout << "(" << action << "," << qnode->lower_bound() << ") " ;
 		if (qnode->lower_bound() > astar.value) {
 			astar = ValuedAction(action, qnode->lower_bound());
 		}
 	}
-
+	std::cout << std::endl;
 	if (vnode->default_move().value > astar.value) {
 		astar = vnode->default_move();
 	}
