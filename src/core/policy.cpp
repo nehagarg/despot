@@ -43,7 +43,11 @@ ValuedAction Policy::RecursiveValue(const vector<State*>& particles,
 		return particle_lower_bound_->Value(particles);
 	} else {
 		int action = Action(particles, streams, history);
-
+                if(action < 0)
+                {
+                    return particle_lower_bound_->Value(particles);
+                }
+                
 		double value = 0;
 
 		map<OBS_TYPE, vector<State*> > partitions;
@@ -60,13 +64,15 @@ ValuedAction Policy::RecursiveValue(const vector<State*>& particles,
 				partitions[obs].push_back(particle);
 			}
 		}
-
+                
+                //std::cout << "Depth: " << history.Size() << " Got reward value :(" << action << "," << value << ")\n";
 		for (map<OBS_TYPE, vector<State*> >::iterator it = partitions.begin();
 			it != partitions.end(); it++) {
 			OBS_TYPE obs = it->first;
 			history.Add(action, obs);
 			streams.Advance();
 			ValuedAction va = RecursiveValue(it->second, streams, history);
+                       // std::cout << "Depth: " << history.Size() << " Got value :(" << va.action << "," << va.value << ")\n";
 			value += Globals::Discount() * va.value;
 			streams.Back();
 			history.RemoveLast();
