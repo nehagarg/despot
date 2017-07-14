@@ -26,7 +26,9 @@ ScenarioUpperBound* DESPOT::upper_bound() const {
 
 VNode* DESPOT::Trial(VNode* root, RandomStreams& streams,
 	ScenarioLowerBound* lower_bound, ScenarioUpperBound* upper_bound,
-	const DSPOMDP* model, History& history, SearchStatistics* statistics) {
+	const DSPOMDP* model, History& history, SearchStatistics* statistics,
+        ScenarioLowerBound* learned_lower_bound,
+        DespotStaticFunctionOverrideHelper* o_helper) {
 	VNode* cur = root;
 
 	int hist_size = history.Size();
@@ -45,7 +47,8 @@ VNode* DESPOT::Trial(VNode* root, RandomStreams& streams,
 
 		if (cur->IsLeaf()) {
 			double start = clock();
-			Expand(cur, lower_bound, upper_bound, model, streams, history);
+			Expand(cur, lower_bound, upper_bound, model, streams, history,
+                                learned_lower_bound, statistics, o_helper);
 
 			if (statistics != NULL) {
 				statistics->time_node_expansion += (double) (clock() - start)
@@ -56,6 +59,7 @@ VNode* DESPOT::Trial(VNode* root, RandomStreams& streams,
 		}
 
 		double start = clock();
+                //std::cout << "Cur depth " << cur->depth() << " " ;
 		QNode* qstar = SelectBestUpperBoundNode(cur);
 		VNode* next = SelectBestWEUNode(qstar);
 
@@ -64,6 +68,7 @@ VNode* DESPOT::Trial(VNode* root, RandomStreams& streams,
 		}
 
 		if (next == NULL) {
+                    //std::cout << "Next is null " << std::endl;
 			break;
 		}
 
@@ -120,7 +125,8 @@ void DESPOT::ExploitBlockers(VNode* vnode) {
 VNode* DESPOT::ConstructTree(vector<State*>& particles, RandomStreams& streams,
 	ScenarioLowerBound* lower_bound, ScenarioUpperBound* upper_bound,
 	const DSPOMDP* model, History& history, double timeout,
-	SearchStatistics* statistics) {
+	SearchStatistics* statistics, ScenarioLowerBound* learned_lower_bound,
+        DespotStaticFunctionOverrideHelper* o_helper) {
 	if (statistics != NULL) {
 		statistics->num_particles_before_search = model->NumActiveParticles();
 	}
@@ -133,7 +139,10 @@ VNode* DESPOT::ConstructTree(vector<State*>& particles, RandomStreams& streams,
 
 	logd
 		<< "[DESPOT::ConstructTree] START - Initializing lower and upper bounds at the root node.";
-	InitBounds(root, lower_bound, upper_bound, streams, history);
+	InitBounds(root, lower_bound, upper_bound, streams, 
+                history, learned_lower_bound, statistics, o_helper);
+        //InitBounds(root, lower_bound, upper_bound, streams, 
+        //        history);
 	logd
 		<< "[DESPOT::ConstructTree] END - Initializing lower and upper bounds at the root node.";
 
@@ -143,10 +152,14 @@ VNode* DESPOT::ConstructTree(vector<State*>& particles, RandomStreams& streams,
 	}
 
 	double used_time = 0;
+        double extra_time_used = 0;
 	int num_trials = 0;
 	do {
 		double start = clock();
-		VNode* cur = Trial(root, streams, lower_bound, upper_bound, model, history, statistics);
+		VNode* cur = Trial(root, streams, lower_bound, upper_bound, model, 
+                        history, statistics, learned_lower_bound, o_helper);
+                //VNode* cur = Trial(root, streams, lower_bound, upper_bound, model, 
+                //        history, statistics);
 		used_time += double(clock() - start) / CLOCKS_PER_SEC;
 
 		start = clock();
@@ -157,7 +170,15 @@ VNode* DESPOT::ConstructTree(vector<State*>& particles, RandomStreams& streams,
 		used_time += double(clock() - start) / CLOCKS_PER_SEC;
 
 		num_trials++;
-	} while (used_time * (num_trials + 1.0) / num_trials < timeout
+                
+                if(o_helper!=NULL)
+                {  
+                    extra_time_used = o_helper->GetTimeNotToBeCounted(statistics);
+                    
+                }
+                //double time_used = (used_time  - extra_time_used) * (num_trials + 1.0) / num_trials;
+                //std::cout << "Time used " << time_used << "," << extra_time_used << "," << used_time << std::endl;
+	} while ((used_time  - extra_time_used) * (num_trials + 1.0) / num_trials < timeout
 		&& (root->upper_bound() - root->lower_bound()) > 1e-6);
 
 	if (statistics != NULL) {
@@ -189,8 +210,18 @@ void DESPOT::Compare() {
 }
 
 void DESPOT::InitLowerBound(VNode* vnode, ScenarioLowerBound* lower_bound,
-	RandomStreams& streams, History& history) {
-	streams.position(vnode->depth());
+	RandomStreams& streams, History& history, 
+        ScenarioLowerBound* learned_lower_bound, SearchStatistics* statistics,
+        DespotStaticFunctionOverrideHelper* o_helper) {
+	if (learned_lower_bound !=NULL)
+        {
+            //std::cout << "My name is " << o_helper->name << std::endl;
+            o_helper->InitMultipleLowerBounds(vnode, lower_bound,
+                    streams,history,learned_lower_bound, statistics);
+            return;
+                    //o_helper->GetTimeNotToBeCounted(statistics);
+        }
+        streams.position(vnode->depth());
 	ValuedAction move = lower_bound->Value(vnode->particles(), streams, history);
 	move.value *= Globals::Discount(vnode->depth());
 	vnode->default_move(move);
@@ -207,8 +238,11 @@ void DESPOT::InitUpperBound(VNode* vnode, ScenarioUpperBound* upper_bound,
 }
 
 void DESPOT::InitBounds(VNode* vnode, ScenarioLowerBound* lower_bound,
-	ScenarioUpperBound* upper_bound, RandomStreams& streams, History& history) {
-	InitLowerBound(vnode, lower_bound, streams, history);
+	ScenarioUpperBound* upper_bound, RandomStreams& streams, History& history, 
+        ScenarioLowerBound* learned_lower_bound, SearchStatistics* statistics, 
+        DespotStaticFunctionOverrideHelper* o_helper) {
+	InitLowerBound(vnode, lower_bound, streams, history, 
+                learned_lower_bound, statistics, o_helper);
 	InitUpperBound(vnode, upper_bound, streams, history);
 	if (vnode->upper_bound() < vnode->lower_bound()
 		// close gap because no more search can be done on leaf node
@@ -231,8 +265,8 @@ ValuedAction DESPOT::Search() {
 	logi << "[DESPOT::Search] Time for sampling " << particles.size()
 		<< " particles: " << (get_time_second() - start) << "s" << endl;
 
-	statistics_ = SearchStatistics();
-
+	InitStatistics();
+        
 	start = get_time_second();
 	static RandomStreams streams = RandomStreams(Globals::config.num_scenarios,
 		Globals::config.search_depth);
@@ -251,9 +285,9 @@ ValuedAction DESPOT::Search() {
 		lower_bound_->Init(streams);
 		upper_bound_->Init(streams);
 	}
-
-	root_ = ConstructTree(particles, streams, lower_bound_, upper_bound_,
-		model_, history_, Globals::config.time_per_move, &statistics_);
+        
+        CoreSearch(particles, streams);
+        
 	logi << "[DESPOT::Search] Time for tree construction: "
 		<< (get_time_second() - start) << "s" << endl;
 
@@ -268,7 +302,7 @@ ValuedAction DESPOT::Search() {
 
 	logi << "[DESPOT::Search] Time for deleting tree: "
 		<< (get_time_second() - start) << "s" << endl;
-	logi << "[DESPOT::Search] Search statistics:" << endl << statistics_
+	logi << "[DESPOT::Search] Search statistics:" << endl << *statistics_
 		<< endl;
 
 	return astar;
@@ -515,13 +549,14 @@ QNode* DESPOT::SelectBestUpperBoundNode(VNode* vnode) {
 	double upperstar = Globals::NEG_INFTY;
 	for (int action = 0; action < vnode->children().size(); action++) {
 		QNode* qnode = vnode->Child(action);
-
+ //               std::cout << "(" << action << "," << qnode->upper_bound() << "," << qnode->lower_bound() << ") " ;
 		if (qnode->upper_bound() > upperstar) {
 			upperstar = qnode->upper_bound();
 			astar = action;
 		}
 	}
 	assert(astar >= 0);
+ //       std::cout << "Selected action " << astar << std::endl;
 	return vnode->Child(astar);
 }
 
@@ -624,15 +659,18 @@ VNode* DESPOT::FindBlocker(VNode* vnode) {
 void DESPOT::Expand(VNode* vnode,
 	ScenarioLowerBound* lower_bound, ScenarioUpperBound* upper_bound,
 	const DSPOMDP* model, RandomStreams& streams,
-	History& history) {
+	History& history, ScenarioLowerBound* learned_lower_bound,
+        SearchStatistics* statistics, 
+        DespotStaticFunctionOverrideHelper* o_helper) {
 	vector<QNode*>& children = vnode->children();
-	logd << "- Expanding vnode " << vnode << endl;
+	logd << "- Expanding vnode " << vnode << "with " << vnode->particles().size() << "particles" << endl;
 	for (int action = 0; action < model->NumActions(); action++) {
 		logd << " Action " << action << endl;
 		QNode* qnode = new QNode(vnode, action);
 		children.push_back(qnode);
 
-		Expand(qnode, lower_bound, upper_bound, model, streams, history);
+		Expand(qnode, lower_bound, upper_bound, model, streams, history, 
+                        learned_lower_bound, statistics, o_helper);
 	}
 	logd << "* Expansion complete!" << endl;
 }
@@ -640,7 +678,9 @@ void DESPOT::Expand(VNode* vnode,
 void DESPOT::Expand(QNode* qnode, ScenarioLowerBound* lb,
 	ScenarioUpperBound* ub, const DSPOMDP* model,
 	RandomStreams& streams,
-	History& history) {
+	History& history,  ScenarioLowerBound* learned_lower_bound, 
+        SearchStatistics* statistics, 
+        DespotStaticFunctionOverrideHelper* o_helper) {
 	VNode* parent = qnode->parent();
 	streams.position(parent->depth());
 	map<OBS_TYPE, VNode*>& children = qnode->children();
@@ -653,6 +693,7 @@ void DESPOT::Expand(QNode* qnode, ScenarioLowerBound* lb,
 	map<OBS_TYPE, vector<State*> > partitions;
 	OBS_TYPE obs;
 	double reward;
+        int  num_particles_pushed = 0;
 	for (int i = 0; i < particles.size(); i++) {
 		State* particle = particles[i];
 		logd << " Original: " << *particle << endl;
@@ -671,13 +712,15 @@ void DESPOT::Expand(QNode* qnode, ScenarioLowerBound* lb,
 
 		if (!terminal) {
 			partitions[obs].push_back(copy);
+                        num_particles_pushed++;
 		} else {
 			model->Free(copy);
 		}
 	}
 	step_reward = Globals::Discount(parent->depth()) * step_reward
 		- Globals::config.pruning_constant;//pruning_constant is used for regularization
-
+        
+//        std::cout << "Step reward = " << step_reward << std::endl;
 	double lower_bound = step_reward;
 	double upper_bound = step_reward;
 
@@ -692,7 +735,7 @@ void DESPOT::Expand(QNode* qnode, ScenarioLowerBound* lb,
 		children[obs] = vnode;
 
 		history.Add(qnode->edge(), obs);
-		InitBounds(vnode, lb, ub, streams, history);
+		InitBounds(vnode, lb, ub, streams, history, learned_lower_bound, statistics, o_helper);
 		history.RemoveLast();
 		logd << " New node's bounds: (" << vnode->lower_bound() << ", "
 			<< vnode->upper_bound() << ")" << endl;
@@ -700,7 +743,7 @@ void DESPOT::Expand(QNode* qnode, ScenarioLowerBound* lb,
 		lower_bound += vnode->lower_bound();
 		upper_bound += vnode->upper_bound();
 	}
-
+//        std::cout << "Upper bound = " << upper_bound - step_reward<< " Num particles pushed " << num_particles_pushed << std::endl;
 	qnode->step_reward = step_reward;
 	qnode->lower_bound(lower_bound);
 	qnode->upper_bound(upper_bound);
@@ -784,10 +827,22 @@ void DESPOT::Update(int action, OBS_TYPE obs) {
 	history_.Add(action, obs);
 
 	lower_bound_->belief(belief_);
-
+        
 	logi << "[Solver::Update] Updated belief, history and root with action "
 		<< action << ", observation " << obs
 		<< " in " << (get_time_second() - start) << "s" << endl;
-}
+    }
+
+    void DESPOT::InitStatistics() {
+        statistics_ = new SearchStatistics();
+    }
+    
+    void DESPOT::CoreSearch(std::vector<State*> particles, RandomStreams& streams) {
+        
+	root_ = ConstructTree(particles, streams, lower_bound_, upper_bound_,
+		model_, history_, Globals::config.time_per_move, statistics_);
+    }
+
+
 
 } // namespace despot

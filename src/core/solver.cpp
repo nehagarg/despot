@@ -30,8 +30,28 @@ SearchStatistics::SearchStatistics() :
 	longest_trial_length(0) {
 }
 
+void SearchStatistics::print(std::ostream& os) const
+{
+    os << "Initial bounds: (" << initial_lb << ", "
+		<< initial_ub << ")" << endl;
+	os << "Final bounds: (" << final_lb << ", "
+		<< final_ub << ")" << endl;
+	os << "Time (CPU s): path / expansion / backup / total = "
+		<< time_path << " / " << time_node_expansion
+		<< " / " << time_backup << " / " << time_search
+		<< endl;
+	os << "Trials: no. / max length = " << num_trials << " / "
+		<< longest_trial_length << endl;
+	os << "# nodes: expanded / total / policy = "
+		<< num_expanded_nodes << " / " << num_tree_nodes
+		<< " / " << num_policy_nodes << endl;
+	os << "# particles: initial / final / tree = "
+		<< num_particles_before_search << " / "
+		<< num_particles_after_search << " / "
+		<< num_tree_particles; // << endl;
+}
 ostream& operator<<(ostream& os, const SearchStatistics& statistics) {
-	os << "Initial bounds: (" << statistics.initial_lb << ", "
+	/*os << "Initial bounds: (" << statistics.initial_lb << ", "
 		<< statistics.initial_ub << ")" << endl;
 	os << "Final bounds: (" << statistics.final_lb << ", "
 		<< statistics.final_ub << ")" << endl;
@@ -48,6 +68,8 @@ ostream& operator<<(ostream& os, const SearchStatistics& statistics) {
 		<< statistics.num_particles_before_search << " / "
 		<< statistics.num_particles_after_search << " / "
 		<< statistics.num_tree_particles; // << endl;
+         */
+    statistics.print(os);
 	return os;
 }
 

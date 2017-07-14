@@ -11,15 +11,36 @@
 
 namespace despot {
 
+//Class with functions that can be overriden by solver calculating lower bound using deep policy
+class DespotStaticFunctionOverrideHelper {
+    
+public:
+    DespotStaticFunctionOverrideHelper(){
+    //name = "despot";
+    }
+    virtual ~DespotStaticFunctionOverrideHelper(){}
+    virtual void InitMultipleLowerBounds(VNode* vnode, ScenarioLowerBound* lower_bound,
+		RandomStreams& streams, History& history, 
+                ScenarioLowerBound* learned_lower_bound = NULL, SearchStatistics* statistics = NULL){
+       // std::cout << "Initializing multiple bounds from despot " << std::endl;
+    }
+    //Function returns time used by learned policy to get lower bound
+    virtual double GetTimeNotToBeCounted(SearchStatistics* statistics) {
+        //std::cout << "Calling from despot" << std::endl;
+        return 0.0;
+    }
+    //std::string name;
+};    
 class DESPOT: public Solver {
 friend class VNode;
 
 protected:
 	VNode* root_;
-	SearchStatistics statistics_;
+	SearchStatistics* statistics_;
 
 	ScenarioLowerBound* lower_bound_;
 	ScenarioUpperBound* upper_bound_;
+        DespotStaticFunctionOverrideHelper* o_helper_;
 
 public:
 	DESPOT(const DSPOMDP* model, ScenarioLowerBound* lb, ScenarioUpperBound* ub, Belief* belief = NULL);
@@ -36,23 +57,36 @@ public:
 	static VNode* ConstructTree(std::vector<State*>& particles, RandomStreams& streams,
 		ScenarioLowerBound* lower_bound, ScenarioUpperBound* upper_bound,
 		const DSPOMDP* model, History& history, double timeout,
-		SearchStatistics* statistics = NULL);
+		SearchStatistics* statistics = NULL, 
+                ScenarioLowerBound* learned_lower_bound = NULL,
+                DespotStaticFunctionOverrideHelper* o_helper=NULL);
 
-protected:
+public:
 	static VNode* Trial(VNode* root, RandomStreams& streams,
 		ScenarioLowerBound* lower_bound, ScenarioUpperBound* upper_bound,
 		const DSPOMDP* model, History& history, SearchStatistics* statistics =
-			NULL);
+			NULL, ScenarioLowerBound* learned_lower_bound = NULL, 
+                DespotStaticFunctionOverrideHelper* o_helper=NULL);
+        
 	static void InitLowerBound(VNode* vnode, ScenarioLowerBound* lower_bound,
-		RandomStreams& streams, History& history);
+		RandomStreams& streams, History& history, 
+                ScenarioLowerBound* learned_lower_bound = NULL, 
+                SearchStatistics* statistics = NULL, 
+                DespotStaticFunctionOverrideHelper* o_helper=NULL);
 	static void InitUpperBound(VNode* vnode, ScenarioUpperBound* upper_bound,
 		RandomStreams& streams, History& history);
 	static void InitBounds(VNode* vnode, ScenarioLowerBound* lower_bound,
-		ScenarioUpperBound* upper_bound, RandomStreams& streams, History& history);
+		ScenarioUpperBound* upper_bound, RandomStreams& streams, History& history, 
+                ScenarioLowerBound* learned_lower_bound = NULL, 
+                SearchStatistics* statistics = NULL, 
+                DespotStaticFunctionOverrideHelper* o_helper=NULL);
 
 	static void Expand(VNode* vnode,
 		ScenarioLowerBound* lower_bound, ScenarioUpperBound* upper_bound,
-		const DSPOMDP* model, RandomStreams& streams, History& history);
+		const DSPOMDP* model, RandomStreams& streams, History& history,
+                ScenarioLowerBound* learned_lower_bound = NULL, 
+                SearchStatistics* statistics = NULL,
+                DespotStaticFunctionOverrideHelper* o_helper=NULL);
 	static void Backup(VNode* vnode);
 
 	static double Gap(VNode* vnode);
@@ -65,7 +99,10 @@ protected:
 	static VNode* FindBlocker(VNode* vnode);
 	static void Expand(QNode* qnode, ScenarioLowerBound* lower_bound,
 		ScenarioUpperBound* upper_bound, const DSPOMDP* model,
-		RandomStreams& streams, History& history);
+		RandomStreams& streams, History& history,
+                ScenarioLowerBound* learned_lower_bound = NULL, 
+                SearchStatistics* statistics = NULL, 
+                DespotStaticFunctionOverrideHelper* o_helper=NULL);
 	static void Update(VNode* vnode);
 	static void Update(QNode* qnode);
 	static VNode* Prune(VNode* vnode, int& pruned_action, double& pruned_value);
@@ -78,6 +115,8 @@ protected:
 
 	static ValuedAction Evaluate(VNode* root, std::vector<State*>& particles,
 		RandomStreams& streams, POMCPPrior* prior, const DSPOMDP* model);
+        virtual void InitStatistics();
+        virtual void CoreSearch(std::vector<State*> particles, RandomStreams& streams );
 };
 
 } // namespace despot

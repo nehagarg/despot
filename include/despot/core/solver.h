@@ -30,6 +30,7 @@ struct SearchStatistics {
 	int longest_trial_length;
 
 	SearchStatistics();
+        virtual void print(std::ostream& os) const;
 
 	friend std::ostream& operator<<(std::ostream& os, const SearchStatistics& statitics);
 };
