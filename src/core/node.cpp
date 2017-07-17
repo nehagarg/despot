@@ -17,7 +17,9 @@ VNode::VNode(vector<State*>& particles, int depth, QNode* parent,
 	parent_(parent),
 	edge_(edge),
 	vstar(this),
-	likelihood(1) {
+	likelihood(1),
+        rnn_state(NULL),
+        rnn_output(NULL){
 	logd << "Constructed vnode with " << particles_.size() << " particles"
 		<< endl;
 	for (int i = 0; i < particles_.size(); i++) {
@@ -31,7 +33,9 @@ VNode::VNode(Belief* belief, int depth, QNode* parent, OBS_TYPE edge) :
 	parent_(parent),
 	edge_(edge),
 	vstar(this),
-	likelihood(1) {
+	likelihood(1),
+        rnn_state(NULL),
+        rnn_output(NULL){
 }
 
 VNode::VNode(int count, double value, int depth, QNode* parent, OBS_TYPE edge) :
@@ -40,7 +44,9 @@ VNode::VNode(int count, double value, int depth, QNode* parent, OBS_TYPE edge) :
 	parent_(parent),
 	edge_(edge),
 	count_(count),
-	value_(value) {
+	value_(value),
+        rnn_state(NULL),
+        rnn_output(NULL){
 }
 
 VNode::~VNode() {
@@ -53,6 +59,14 @@ VNode::~VNode() {
 
 	if (belief_ != NULL)
 		delete belief_;
+        if(rnn_state !=NULL)
+        {
+            Py_DECREF(rnn_state);
+        }
+        if(rnn_output != NULL)
+        {
+            Py_DECREF(rnn_output);
+        }
 }
 
 Belief* VNode::belief() const {

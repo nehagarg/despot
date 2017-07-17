@@ -29,6 +29,11 @@ public:
         //std::cout << "Calling from despot" << std::endl;
         return 0.0;
     }
+    virtual void UpdateHistoryDuringTrial(History& history,VNode* vnode )
+    {
+         history.Add(vnode->parent()->edge(), vnode->edge());
+    }
+    Solver *solver_pointer;
     //std::string name;
 };    
 class DESPOT: public Solver {

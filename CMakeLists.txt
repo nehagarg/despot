@@ -13,6 +13,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse2 -mfpmath=sse")
 set(CMAKE_MODULE_PATH ${CMAKE_PREFIX_PATH} "${PROJECT_SOURCE_DIR}/cmake")
 
 include_directories(include)
+find_package(PythonLibs REQUIRED)
+include_directories(${PYTHON_INCLUDE_DIRS})
 
 add_library("${PROJECT_NAME}" SHARED
   src/core/belief.cpp
@@ -52,6 +54,7 @@ add_library("${PROJECT_NAME}" SHARED
 )
 target_link_libraries("${PROJECT_NAME}"
   ${TinyXML_LIBRARIES}
+  "${PYTHON_LIBRARIES}"
 )
 
 if(DESPOT_BUILD_EXAMPLES)

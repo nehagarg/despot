@@ -5,6 +5,7 @@
 #include <despot/util/util.h>
 #include <despot/random_streams.h>
 #include <despot/util/logging.h>
+#include "Python.h"
 
 namespace despot {
 
@@ -39,6 +40,8 @@ public:
 	VNode* vstar;
 	double likelihood; // Used in AEMS
 	double utility_upper_bound;
+        PyObject* rnn_state; //Used in DESPOTWITHDEFAULTLEARNEDPOLICY
+        PyObject* rnn_output;//Used in DESPOTWITHDEFAULTLEARNEDPOLICY
 
 	VNode(std::vector<State*>& particles, int depth = 0, QNode* parent = NULL,
 		OBS_TYPE edge = -1);

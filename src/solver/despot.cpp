@@ -73,7 +73,14 @@ VNode* DESPOT::Trial(VNode* root, RandomStreams& streams,
 		}
 
 		cur = next;
-		history.Add(qstar->edge(), cur->edge());
+                if(o_helper !=NULL)
+                {
+                    o_helper->UpdateHistoryDuringTrial(history, cur);
+                }
+                else
+                {
+                    history.Add(qstar->edge(), cur->edge());
+                }
 	} while (cur->depth() < Globals::config.search_depth && WEU(cur) > 0);
 
 	history.Truncate(hist_size);
@@ -156,6 +163,7 @@ VNode* DESPOT::ConstructTree(vector<State*>& particles, RandomStreams& streams,
 	int num_trials = 0;
 	do {
 		double start = clock();
+           //     std::cout << "Starting trial " << num_trials << std::endl;
 		VNode* cur = Trial(root, streams, lower_bound, upper_bound, model, 
                         history, statistics, learned_lower_bound, o_helper);
                 //VNode* cur = Trial(root, streams, lower_bound, upper_bound, model, 
