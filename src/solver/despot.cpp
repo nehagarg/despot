@@ -14,7 +14,25 @@ DESPOT::DESPOT(const DSPOMDP* model, ScenarioLowerBound* lb, ScenarioUpperBound*
 }
 
 DESPOT::~DESPOT() {
-}
+    }
+
+void DespotStaticFunctionOverrideHelper::Expand(QNode* qnode, 
+        ScenarioLowerBound* lower_bound, ScenarioUpperBound* upper_bound, 
+        const DSPOMDP* model, RandomStreams& streams, 
+        History& history, ScenarioLowerBound* learned_lower_bound, 
+        SearchStatistics* statistics, 
+        DespotStaticFunctionOverrideHelper* o_helper) {
+        
+    DESPOT::Expand(qnode,
+            lower_bound,upper_bound,model,streams,
+            history,learned_lower_bound,statistics,o_helper);
+
+    }
+
+    void DespotStaticFunctionOverrideHelper::Update(QNode* qnode) {
+        DESPOT::Update(qnode);
+    }
+
 
 ScenarioLowerBound* DESPOT::lower_bound() const {
 	return lower_bound_;
@@ -49,7 +67,7 @@ VNode* DESPOT::Trial(VNode* root, RandomStreams& streams,
 			double start = clock();
 			Expand(cur, lower_bound, upper_bound, model, streams, history,
                                 learned_lower_bound, statistics, o_helper);
-
+                        //root->PrintTree();
 			if (statistics != NULL) {
 				statistics->time_node_expansion += (double) (clock() - start)
 					/ CLOCKS_PER_SEC;
@@ -163,7 +181,9 @@ VNode* DESPOT::ConstructTree(vector<State*>& particles, RandomStreams& streams,
 	int num_trials = 0;
 	do {
 		double start = clock();
-           //     std::cout << "Starting trial " << num_trials << std::endl;
+                //std::cout << "Starting trial ####################################" << num_trials << std::endl;
+                //root->PrintTree();
+                //std::cout << *statistics << std::endl;
 		VNode* cur = Trial(root, streams, lower_bound, upper_bound, model, 
                         history, statistics, learned_lower_bound, o_helper);
                 //VNode* cur = Trial(root, streams, lower_bound, upper_bound, model, 
@@ -171,7 +191,8 @@ VNode* DESPOT::ConstructTree(vector<State*>& particles, RandomStreams& streams,
 		used_time += double(clock() - start) / CLOCKS_PER_SEC;
 
 		start = clock();
-		Backup(cur);
+		Backup(cur,o_helper);
+                //root->PrintTree();
 		if (statistics != NULL) {
 			statistics->time_backup += double(clock() - start) / CLOCKS_PER_SEC;
 		}
@@ -230,7 +251,13 @@ void DESPOT::InitLowerBound(VNode* vnode, ScenarioLowerBound* lower_bound,
                     //o_helper->GetTimeNotToBeCounted(statistics);
         }
         streams.position(vnode->depth());
-	ValuedAction move = lower_bound->Value(vnode->particles(), streams, history);
+        int obs_particle_size = -1;
+        if(o_helper != NULL)
+        {
+            obs_particle_size = o_helper->GetObservationParticleSize(vnode);
+        }
+        
+	ValuedAction move = lower_bound->Value(vnode->particles(), streams, history, obs_particle_size);
 	move.value *= Globals::Discount(vnode->depth());
 	vnode->default_move(move);
 	vnode->lower_bound(move.value);
@@ -623,7 +650,7 @@ void DESPOT::Update(QNode* qnode) {
 	}
 }
 
-void DESPOT::Backup(VNode* vnode) {
+void DESPOT::Backup(VNode* vnode, DespotStaticFunctionOverrideHelper* o_helper) {
 	int iter = 0;
 	logd << "- Backup " << vnode << " at depth " << vnode->depth() << endl;
 	while (true) {
@@ -636,7 +663,14 @@ void DESPOT::Backup(VNode* vnode) {
 			break;
 		}
 
-		Update(parentq);
+                if(o_helper != NULL)
+                {
+                    o_helper->Update(parentq);
+                }
+                else
+                {
+                  Update(parentq);  
+                }
 		logd << " Updated Q-node to (" << parentq->lower_bound() << ", "
 			<< parentq->upper_bound() << ")" << endl;
 
@@ -671,16 +705,28 @@ void DESPOT::Expand(VNode* vnode,
         SearchStatistics* statistics, 
         DespotStaticFunctionOverrideHelper* o_helper) {
 	vector<QNode*>& children = vnode->children();
-	logd << "- Expanding vnode " << vnode << "with " << vnode->particles().size() << "particles" << endl;
+	logd << "- Expanding vnode " << vnode << " Depth:" << vnode->depth() << " with (" 
+                << vnode->particles().size() << "," << vnode->observation_particle_size 
+                << ") particles" << endl;
 	for (int action = 0; action < model->NumActions(); action++) {
 		logd << " Action " << action << endl;
 		QNode* qnode = new QNode(vnode, action);
 		children.push_back(qnode);
-
-		Expand(qnode, lower_bound, upper_bound, model, streams, history, 
+                if(o_helper != NULL)
+                {
+                    //std::cout<< "o_helper is not null" << std::endl;
+                    o_helper->Expand(qnode, lower_bound, upper_bound, model, streams, history, 
                         learned_lower_bound, statistics, o_helper);
+                }
+                else
+                {
+                    //std::cout<< "null" << std::endl;
+                    Expand(qnode, lower_bound, upper_bound, model, streams, history, 
+                        learned_lower_bound, statistics, o_helper);
+                }
 	}
 	logd << "* Expansion complete!" << endl;
+        
 }
 
 void DESPOT::Expand(QNode* qnode, ScenarioLowerBound* lb,
@@ -689,6 +735,7 @@ void DESPOT::Expand(QNode* qnode, ScenarioLowerBound* lb,
 	History& history,  ScenarioLowerBound* learned_lower_bound, 
         SearchStatistics* statistics, 
         DespotStaticFunctionOverrideHelper* o_helper) {
+   // std::cout << "Expanding in despot" << std::endl;
 	VNode* parent = qnode->parent();
 	streams.position(parent->depth());
 	map<OBS_TYPE, VNode*>& children = qnode->children();

@@ -47,7 +47,8 @@ private:
 	ParticleLowerBound* particle_lower_bound_;
 
 	ValuedAction RecursiveValue(const std::vector<State*>& particles,
-		RandomStreams& streams, History& history) const;
+		RandomStreams& streams, History& history, 
+                int observation_particle_size = -1, const std::vector<double>& weight_vector = std::vector<double>()) const;
 
 public:
 	Policy(const DSPOMDP* model, ParticleLowerBound* particle_lower_bound,
@@ -61,7 +62,7 @@ public:
 	ParticleLowerBound* particle_lower_bound() const;
 
 	ValuedAction Value(const std::vector<State*>& particles, RandomStreams& streams,
-		History& history) const;
+		History& history, int observation_particle_size = -1) const;
 
 	virtual ValuedAction Search();
 };

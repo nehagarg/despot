@@ -5,6 +5,7 @@
 #include <despot/solver/despot.h>
 #include <despot/solver/aems.h>
 #include <despot/solver/pomcp.h>
+#include <despot/solver/DespotWithBeliefTracking.h>
 
 #include <despot/util/optionparser.h>
 #include <despot/util/seeds.h>

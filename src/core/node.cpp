@@ -25,6 +25,7 @@ VNode::VNode(vector<State*>& particles, int depth, QNode* parent,
 	for (int i = 0; i < particles_.size(); i++) {
 		logd << " " << i << " = " << *particles_[i] << endl;
 	}
+        observation_particle_size = particles.size();
 }
 
 VNode::VNode(Belief* belief, int depth, QNode* parent, OBS_TYPE edge) :
@@ -250,8 +251,16 @@ void VNode::PrintTree(int depth, ostream& os) {
 	os << "(" << "d:" << this->default_move().value <<
 		" l:" << this->lower_bound() << ", u:" << this->upper_bound()
 		<< ", w:" << this->Weight() << ", weu:" << DESPOT::WEU(this)
-		<< ")"
-		<< endl;
+		<< ")";
+        for (int i = 0; i < this->particles_.size(); i++) {
+            if(i==this->observation_particle_size)
+            {
+                os << "||||";
+            }
+            os << " " << i << " = " << *((this->particles_)[i]) << endl;
+        }
+		
+		os << endl;
 
 
 	vector<QNode*>& qnodes = children();

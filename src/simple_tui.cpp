@@ -22,7 +22,8 @@ Solver *SimpleTUI::InitializeSolver(DSPOMDP *model, string solver_type,
   Solver *solver = NULL;
   // DESPOT or its default policy
   if (solver_type == "DESPOT" ||
-      solver_type == "PLB") // PLB: particle lower bound
+      solver_type == "PLB" ||
+      solver_type == "BTDESPOT") // PLB: particle lower bound
   {
     string blbtype = options[E_BLBTYPE] ? options[E_BLBTYPE].arg : "DEFAULT";
     string lbtype = options[E_LBTYPE] ? options[E_LBTYPE].arg : "DEFAULT";
@@ -31,15 +32,21 @@ Solver *SimpleTUI::InitializeSolver(DSPOMDP *model, string solver_type,
 
     logi << "Created lower bound " << typeid(*lower_bound).name() << endl;
 
-    if (solver_type == "DESPOT") {
+    if (solver_type == "DESPOT" || solver_type == "BTDESPOT") {
       string bubtype = options[E_BUBTYPE] ? options[E_BUBTYPE].arg : "DEFAULT";
       string ubtype = options[E_UBTYPE] ? options[E_UBTYPE].arg : "DEFAULT";
       ScenarioUpperBound *upper_bound =
           model->CreateScenarioUpperBound(ubtype, bubtype);
 
       logi << "Created upper bound " << typeid(*upper_bound).name() << endl;
-
-      solver = new DESPOT(model, lower_bound, upper_bound);
+      if (solver_type == "DESPOT")
+      {
+        solver = new DESPOT(model, lower_bound, upper_bound);
+      }
+      if (solver_type == "BTDESPOT")
+      {
+        solver = new DespotWithBeliefTracking(model, lower_bound, upper_bound);
+      }
     } else
       solver = lower_bound;
   } // AEMS or its default policy

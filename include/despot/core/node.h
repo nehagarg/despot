@@ -21,6 +21,7 @@ class QNode;
 class VNode {
 protected:
   std::vector<State*> particles_; // Used in DESPOT
+  
 	Belief* belief_; // Used in AEMS
 	int depth_;
 	QNode* parent_;
@@ -40,6 +41,7 @@ public:
 	VNode* vstar;
 	double likelihood; // Used in AEMS
 	double utility_upper_bound;
+        int observation_particle_size; //Used in despot with belief tracking
         PyObject* rnn_state; //Used in DESPOTWITHDEFAULTLEARNEDPOLICY
         PyObject* rnn_output;//Used in DESPOTWITHDEFAULTLEARNEDPOLICY
 

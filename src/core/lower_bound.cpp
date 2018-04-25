@@ -56,6 +56,8 @@ ValuedAction ScenarioLowerBound::Search() {
 void ScenarioLowerBound::Learn(VNode* tree) {
 }
 
+
+
 /* =============================================================================
  * POMCPScenarioLowerBound class
  * =============================================================================*/
@@ -70,7 +72,7 @@ POMCPScenarioLowerBound::POMCPScenarioLowerBound(const DSPOMDP* model,
 }
 
 ValuedAction POMCPScenarioLowerBound::Value(const vector<State*>& particles,
-	RandomStreams& streams, History& history) const {
+	RandomStreams& streams, History& history, int observation_particle_size) const {
 	prior_->history(history);
 	VNode* root = POMCP::CreateVNode(0, particles[0], prior_, model_);
 	// Note that particles are assumed to be of equal weight
@@ -96,7 +98,7 @@ ParticleLowerBound::ParticleLowerBound(const DSPOMDP* model, Belief* belief) :
 }
 
 ValuedAction ParticleLowerBound::Value(const vector<State*>& particles,
-	RandomStreams& streams, History& history) const {
+	RandomStreams& streams, History& history, int observation_particle_size) const {
 	return Value(particles);
 }
 

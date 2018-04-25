@@ -56,6 +56,7 @@ double TrivialParticleUpperBound::Value(const State& state) const {
 
 double TrivialParticleUpperBound::Value(const vector<State*>& particles,
 	RandomStreams& streams, History& history) const {
+    //std::cout << "Calculating upper bound " << State::Weight(particles) << " " << particles.size() << " " << std::endl;
 	return State::Weight(particles) * model_->GetMaxReward() / (1 - Globals::Discount());
 }
 

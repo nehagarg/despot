@@ -21,36 +21,71 @@ Policy::~Policy() {
 }
 
 ValuedAction Policy::Value(const vector<State*>& particles,
-	RandomStreams& streams, History& history) const {
+	RandomStreams& streams, History& history, int observation_particle_size) const {
+    //std::cout<< "Observation particle size" << observation_particle_size << std::endl;
 	vector<State*> copy;
+        vector<double> copy_weight;
+        if(observation_particle_size > 0)
+        {
+            for (int i = 0; i < particles.size(); i++)
+            copy_weight.push_back(particles[i]->weight);
+        }
 	for (int i = 0; i < particles.size(); i++)
 		copy.push_back(model_->Copy(particles[i]));
 
 	initial_depth_ = history.Size();
-	ValuedAction va = RecursiveValue(copy, streams, history);
+	ValuedAction va = RecursiveValue(copy, streams, history, observation_particle_size,copy_weight );
 
-	for (int i = 0; i < copy.size(); i++)
+        //Belief particles get freed in recursive value function
+        int free_particle_size = copy.size();
+        /*if(observation_particle_size > 0)
+        {
+            free_particle_size = observation_particle_size;
+        }*/
+        //std::cout<< "Free particle size" << free_particle_size << std::endl;
+	for (int i = 0; i < free_particle_size; i++)
 		model_->Free(copy[i]);
 
 	return va;
 }
 
 ValuedAction Policy::RecursiveValue(const vector<State*>& particles,
-	RandomStreams& streams, History& history) const {
+	RandomStreams& streams, History& history, 
+        int obs_particle_size, const std::vector<double>& weight_vector) const {
+    //std::cout<< "Recursive Observation particle size" << obs_particle_size << std::endl;
+        if(obs_particle_size > 0)
+            {
+                for (int i = 0; i < particles.size(); i++)
+                {
+                    particles[i]->weight = weight_vector[i];
+                }
+		
+            }
 	if (streams.Exhausted()
 		|| (history.Size() - initial_depth_
 			>= Globals::config.max_policy_sim_len)) {
-		return particle_lower_bound_->Value(particles);
+            return particle_lower_bound_->Value(particles);
+            
+		
 	} else {
 		int action = Action(particles, streams, history);
                 if(action < 0)
-                {
+                {   
                     return particle_lower_bound_->Value(particles);
+                    
+                    //return particle_lower_bound_->Value(particles);
                 }
                 
 		double value = 0;
-
+                int observation_particle_size = obs_particle_size;
+                
+                
+                
+                std::map<OBS_TYPE, std::vector<State*> > partitions_belief_; //Stores belief particles
 		map<OBS_TYPE, vector<State*> > partitions;
+                map<OBS_TYPE, vector<double> > partitions_weight;
+                map<OBS_TYPE, vector<double> > partitions_belief_weight;
+                
 		OBS_TYPE obs;
 		double reward;
 		for (int i = 0; i < particles.size(); i++) {
@@ -61,19 +96,91 @@ ValuedAction Policy::RecursiveValue(const vector<State*>& particles,
 			value += reward * particle->weight;
 
 			if (!terminal) {
-				partitions[obs].push_back(particle);
+                            if(i< observation_particle_size && obs_particle_size>0)
+                            {
+                                if(partitions.count(obs) == 0)
+                                {
+                                    for (std::map<OBS_TYPE, std::vector<State*> >::iterator it = partitions.begin();
+                        it != partitions.end(); it++)
+                                    {
+                                        OBS_TYPE obs_key = it->first;
+                                        for (int j = 0; j< partitions[obs_key].size();j++)
+                                        {
+                                            //State* copy1 = model_->Copy(partitions[obs_key][j]);
+                                            partitions_belief_[obs].push_back(partitions[obs_key][j]);
+                                            partitions_belief_weight[obs].push_back(partitions[obs_key][j]->weight);
+                                        }
+                                    }
+                                }
+				
+                            }
+                            if(i < observation_particle_size || obs_particle_size<0)
+                            {
+                                partitions[obs].push_back(particle);
+                                if(obs_particle_size > 0)
+                                {
+                                    partitions_weight[obs].push_back(particle->weight);
+                                }
+                            }
+                            
+                            
+                            
+                            if(obs_particle_size > 0)
+                            {
+                                for (std::map<OBS_TYPE, std::vector<State*> >::iterator it = partitions.begin();
+		it != partitions.end(); it++) {
+                            OBS_TYPE obs_key = it->first;
+                                if(i>=observation_particle_size || obs_key!=obs)
+                                {
+                                    //State* copy1 = model_->Copy(particle);
+                                    partitions_belief_[obs_key].push_back(particle);
+                                    partitions_belief_weight[obs_key].push_back(particle->weight);
+                                }
+                            
+                                }
+                            }
 			}
+                        /*if(i>= observation_particle_size && obs_particle_size>0)
+                        {
+                            model_->Free(particle);
+                        }*/   
 		}
                 
                 //std::cout << "Depth: " << history.Size() << " Got reward value :(" << action << "," << value << ")\n";
 		for (map<OBS_TYPE, vector<State*> >::iterator it = partitions.begin();
 			it != partitions.end(); it++) {
 			OBS_TYPE obs = it->first;
+                        int observation_particle_size_ = obs_particle_size;
+                        if(obs_particle_size > 0)
+                        {
+                            observation_particle_size_ = partitions[obs].size();
+                            partitions[obs].insert(partitions[obs].end(),partitions_belief_[obs].begin(),partitions_belief_[obs].end());
+                            partitions_weight[obs].insert(partitions_weight[obs].end(),
+                                    partitions_belief_weight[obs].begin(),
+                                    partitions_belief_weight[obs].end());
+                            double total_weight = 0;
+                            for(int i = 0; i < partitions[obs].size();i++)
+                            {
+                                double prob = model_->ObsProb(obs, *partitions[obs][i], action);
+                                //std::cout << "Obs Prob:" <<  prob << std::endl;
+                
+                                 // Terminal state is not required to be explicitly represented and may not have any observation
+                                partitions_weight[obs][i] *= prob;
+                                total_weight += partitions_weight[obs][i];
+                        //Total weight should not be zero as one particle actually produced that observation
+                            }
+                            for(int i = 0; i < partitions[obs].size();i++)
+                            {
+                                partitions_weight[obs][i]= partitions_weight[obs][i]/total_weight;
+                            }
+                
+                        }
+                        //std::cout<< "Recursive Partitioned Observation size" << observation_particle_size_<< std::endl;
 			history.Add(action, obs);
 			streams.Advance();
-			ValuedAction va = RecursiveValue(it->second, streams, history);
+			ValuedAction va = RecursiveValue(it->second, streams, history, observation_particle_size_,partitions_weight[obs]);
                        // std::cout << "Depth: " << history.Size() << " Got value :(" << va.action << "," << va.value << ")\n";
-			value += Globals::Discount() * va.value;
+			value += Globals::Discount() * va.value*observation_particle_size_/observation_particle_size;
 			streams.Back();
 			history.RemoveLast();
 		}

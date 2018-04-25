@@ -33,6 +33,20 @@ public:
     {
          history.Add(vnode->parent()->edge(), vnode->edge());
     }
+    
+    virtual void Expand(QNode* qnode, ScenarioLowerBound* lower_bound,
+		ScenarioUpperBound* upper_bound, const DSPOMDP* model,
+		RandomStreams& streams, History& history,
+                ScenarioLowerBound* learned_lower_bound = NULL, 
+                SearchStatistics* statistics = NULL,
+                DespotStaticFunctionOverrideHelper* o_helper=NULL);
+    
+    virtual void Update(QNode* qnode);
+    virtual int GetObservationParticleSize(VNode* vnode)
+    {
+        return -1;
+    }
+
     Solver *solver_pointer;
     //std::string name;
 };    
@@ -92,7 +106,7 @@ public:
                 ScenarioLowerBound* learned_lower_bound = NULL, 
                 SearchStatistics* statistics = NULL,
                 DespotStaticFunctionOverrideHelper* o_helper=NULL);
-	static void Backup(VNode* vnode);
+	static void Backup(VNode* vnode, DespotStaticFunctionOverrideHelper* o_helper=NULL);
 
 	static double Gap(VNode* vnode);
 

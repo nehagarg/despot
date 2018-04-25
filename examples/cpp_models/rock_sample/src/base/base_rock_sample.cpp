@@ -390,7 +390,7 @@ public:
 	}
 
 	ValuedAction Value(const vector<State*>& particles, RandomStreams& streams,
-		History& history) const {
+		History& history, int observation_particle_size = -1) const {
 		return ValuedAction(Compass::EAST,
 			10 * State::Weight(particles)
 				* Globals::Discount(grid_.xsize() - rs_model_->GetX(particles[0]) - 1));
@@ -428,7 +428,7 @@ public:
 	}
 
 	ValuedAction Value(const vector<State*>& particles, RandomStreams& streams,
-		History& history) const {
+		History& history, int observation_particle_size = -1) const {
 		vector<double> expected_sampling_value = vector<double>(
 			rs_model_->num_rocks_);
 		int state = 0;
@@ -498,7 +498,7 @@ public:
 	}
 
 	ValuedAction Value(const vector<State*>& particles, RandomStreams& streams,
-		History& history) const {
+		History& history, int observation_particle_size = -1) const {
 		vector<double> expected_sampling_value = vector<double>(
 			rs_model_->num_rocks_);
 		Coord rob_pos;
