@@ -1,5 +1,6 @@
 #include <despot/simple_tui.h>
 #include "tiger.h"
+#include "tiger2actions.h"
 
 using namespace despot;
 
@@ -10,6 +11,7 @@ public:
  
   DSPOMDP* InitializeModel(option::Option* options) {
     DSPOMDP* model = new Tiger();
+    // DSPOMDP* model = new Tiger2actions(); 
     return model;
   }
   

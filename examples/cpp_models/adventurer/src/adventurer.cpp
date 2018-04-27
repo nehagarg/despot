@@ -30,7 +30,7 @@ Adventurer* Adventurer::current_ = NULL;
 
 Adventurer::Adventurer(int num_goals) {
 	current_ = this;
-
+        std::cout << "Num goals = " <<  num_goals << std::endl;
 	if (num_goals != 2 && num_goals != 50) {
 		cerr << "[Adventurer::Adventurer] Only 2 or 50 goals are supported." << endl;
 		exit(0);

@@ -72,6 +72,7 @@ public:
 	TagSHRPolicy(const DSPOMDP* model, ParticleLowerBound* bound) :
 		Policy(model, bound),
 		tag_model_(static_cast<const BaseTag*>(model)) {
+                    std::cout << "TagSHRPolicy" << std::endl;
 		floor_ = tag_model_->floor();
 	}
 
