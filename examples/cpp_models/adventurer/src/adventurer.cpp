@@ -31,8 +31,8 @@ Adventurer* Adventurer::current_ = NULL;
 Adventurer::Adventurer(int num_goals) {
 	current_ = this;
         std::cout << "Num goals = " <<  num_goals << std::endl;
-	if (num_goals != 2 && num_goals != 50) {
-		cerr << "[Adventurer::Adventurer] Only 2 or 50 goals are supported." << endl;
+	if (num_goals != 2 && num_goals != 50&& num_goals != 1 ) {
+		cerr << "[Adventurer::Adventurer] Only 1, 2 or 50 goals are supported." << endl;
 		exit(0);
 	}
 
@@ -49,6 +49,14 @@ Adventurer::Adventurer(int num_goals) {
 			+ string("0.02 101 0.02 102 0.02 103 0.02 104 0.02 105 0.02 106 0.02 107 0.02 108 0.02 109 0.02 110 0.02 111 0.02 112 0.02 113 0.02 114 0.02 115 0.02 116 0.02 117 0.02 118 0.02 119 0.02 120 0.02 121 0.02 122 0.02 123 0.02 124 0.02 125 0.02 126 0.02 127 0.02 128 0.02 129 0.02 130 0.02 131 0.02 132 0.02 133 0.02 134 0.02 135 0.02 136 0.02 137 0.02 138 0.02 139 0.02 140 0.02 141 0.02 142 0.02 143 0.02 144 0.02 145 0.02 146 0.02 147 0.02 148 0.02 149 0.02 150\n")  // goal probability, goal reward
 			+ string("0.3") // observation noise
 		);
+        if(num_goals == 1)
+        {
+            map = (string("mapSize = 5 nGoal = 1\n")
+			+ string("0.5 0.5 0.5 0.5 0.5\n") // probabilities of being trapped
+			+ string("1 150\n") // goal probability, goal reward
+			+ string("0.0") // observation noise
+		);
+        }
 
 	istringstream iss(map);
 	Init(iss);
@@ -294,6 +302,7 @@ public:
 
 ScenarioLowerBound* Adventurer::CreateScenarioLowerBound(string name,
 	string particle_bound_name) const {
+    std::cout << "Particle bound name" << particle_bound_name << std::endl;
 	const DSPOMDP* model = this;
 	const StateIndexer* indexer = this;
 	const StatePolicy* policy = this;
