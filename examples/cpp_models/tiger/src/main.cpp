@@ -10,8 +10,9 @@ public:
   }
  
   DSPOMDP* InitializeModel(option::Option* options) {
-    DSPOMDP* model = new Tiger();
-    // DSPOMDP* model = new Tiger2actions(); 
+    DSPOMDP* model;
+    model = !options[E_PARAMS_FILE] ?
+       new  Tiger2actions(): new Tiger();
     return model;
   }
   
