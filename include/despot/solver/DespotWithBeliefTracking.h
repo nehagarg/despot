@@ -30,7 +30,7 @@ public:
             SearchStatistics* statistics, 
             DespotStaticFunctionOverrideHelper* o_helper);
 
-    void Update(QNode* qnode);
+    //void Update(QNode* qnode);
     int GetObservationParticleSize(VNode* vnode);
 
 

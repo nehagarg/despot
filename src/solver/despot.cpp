@@ -161,7 +161,10 @@ VNode* DESPOT::ConstructTree(vector<State*>& particles, RandomStreams& streams,
 	}
 
 	VNode* root = new VNode(particles);
-
+        if(o_helper !=NULL)
+        {
+            root->observation_particle_size = o_helper->GetObservationParticleSize(root);
+        }
 	logd
 		<< "[DESPOT::ConstructTree] START - Initializing lower and upper bounds at the root node.";
 	InitBounds(root, lower_bound, upper_bound, streams, 
@@ -264,9 +267,15 @@ void DESPOT::InitLowerBound(VNode* vnode, ScenarioLowerBound* lower_bound,
 }
 
 void DESPOT::InitUpperBound(VNode* vnode, ScenarioUpperBound* upper_bound,
-	RandomStreams& streams, History& history) {
+	RandomStreams& streams, History& history,
+        DespotStaticFunctionOverrideHelper* o_helper) {
 	streams.position(vnode->depth());
-	double upper = upper_bound->Value(vnode->particles(), streams, history);
+        int obs_particle_size = -1;
+        if(o_helper != NULL)
+        {
+            obs_particle_size = o_helper->GetObservationParticleSize(vnode);
+        }
+	double upper = upper_bound->Value(vnode->particles(), streams, history, obs_particle_size);
 	vnode->utility_upper_bound = upper * Globals::Discount(vnode->depth());
 	upper = upper * Globals::Discount(vnode->depth()) - Globals::config.pruning_constant;
 	vnode->upper_bound(upper);
@@ -278,7 +287,7 @@ void DESPOT::InitBounds(VNode* vnode, ScenarioLowerBound* lower_bound,
         DespotStaticFunctionOverrideHelper* o_helper) {
 	InitLowerBound(vnode, lower_bound, streams, history, 
                 learned_lower_bound, statistics, o_helper);
-	InitUpperBound(vnode, upper_bound, streams, history);
+	InitUpperBound(vnode, upper_bound, streams, history, o_helper);
 	if (vnode->upper_bound() < vnode->lower_bound()
 		// close gap because no more search can be done on leaf node
 		|| vnode->depth() == Globals::config.search_depth - 1) {
@@ -327,6 +336,7 @@ ValuedAction DESPOT::Search() {
 		<< (get_time_second() - start) << "s" << endl;
 
 	start = get_time_second();
+        //root_->PrintTree();
 	root_->Free(*model_);
 	logi << "[DESPOT::Search] Time for freeing particles in search tree: "
 		<< (get_time_second() - start) << "s" << endl;
@@ -559,7 +569,17 @@ double DESPOT::WEU(VNode* vnode, double xi) {
 	while (root->parent() != NULL) {
 		root = root->parent()->parent();
 	}
-	return Gap(vnode) - xi * vnode->Weight() * Gap(root);
+	double ans =  Gap(vnode);
+        double weight_factor = 1;
+
+        int obs_particle_size = vnode->observation_particle_size;
+        if(obs_particle_size > 0)
+        {
+            weight_factor = obs_particle_size*1.0/Globals::config.num_scenarios;
+        }
+        
+        ans = ans - (xi * vnode->Weight() * Gap(root)*weight_factor);
+        return ans;
 }
 
 VNode* DESPOT::SelectBestWEUNode(QNode* qnode) {

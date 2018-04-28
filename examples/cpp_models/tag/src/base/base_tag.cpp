@@ -337,7 +337,7 @@ public:
 	}
 
 	using BeliefUpperBound::Value;
-	double Value(const Belief* belief) const {
+	double Value(const Belief* belief, int obs_particle_size = -1) const {
 		const vector<State*>& particles =
 			static_cast<const ParticleBelief*>(belief)->particles();
 
@@ -395,7 +395,7 @@ public:
 		const_cast<BaseTag*>(tag_model_)->ComputeBlindAlpha();
 	}
 
-	ValuedAction Value(const Belief* belief) const {
+	ValuedAction Value(const Belief* belief, int obs_particle_size) const {
 		double bestValue = Globals::NEG_INFTY;
 		int bestAction = -1;
 		for (int action = 0; action < tag_model_->NumActions(); action++) {

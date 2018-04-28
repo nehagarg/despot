@@ -34,7 +34,7 @@ void DespotStaticFunctionOverrideHelperForBeliefTracking::Expand(QNode* qnode, S
 
 	const std::vector<State*>& particles = parent->particles();
         int observation_particle_size = parent->observation_particle_size;
-                
+
 
 	double step_reward = 0;
 
@@ -109,8 +109,8 @@ void DespotStaticFunctionOverrideHelperForBeliefTracking::Expand(QNode* qnode, S
         
         
         
-           
-	step_reward = Globals::Discount(parent->depth()) * step_reward
+        double node_factor = observation_particle_size*1.0/Globals::config.num_scenarios;
+	step_reward = Globals::Discount(parent->depth()) * step_reward*node_factor
 		- Globals::config.pruning_constant;//pruning_constant is used for regularization
         
         //std::cout << "Step reward = " << step_reward << std::endl;
@@ -151,10 +151,11 @@ void DespotStaticFunctionOverrideHelperForBeliefTracking::Expand(QNode* qnode, S
 		history.RemoveLast();
 		logd << " New node's bounds: (" << vnode->lower_bound() << ", "
 			<< vnode->upper_bound() << ")" << std::endl;
-
-		lower_bound += vnode->lower_bound()*observation_particle_size_/observation_particle_size;
-		upper_bound += vnode->upper_bound()*observation_particle_size_/observation_particle_size;
-	}
+                lower_bound += vnode->lower_bound();
+		upper_bound += vnode->upper_bound();
+		//lower_bound += vnode->lower_bound()*observation_particle_size_/observation_particle_size;
+		//upper_bound += vnode->upper_bound()*observation_particle_size_/observation_particle_size;
+        }
         //std::cout << "Upper bound = " << upper_bound - step_reward<< " Num particles pushed " << num_particles_pushed << std::endl;
 	qnode->step_reward = step_reward;
 	qnode->lower_bound(lower_bound);
@@ -164,6 +165,7 @@ void DespotStaticFunctionOverrideHelperForBeliefTracking::Expand(QNode* qnode, S
 	qnode->default_value = lower_bound; // for debugging
 }
 
+/*
 void DespotStaticFunctionOverrideHelperForBeliefTracking::Update(QNode* qnode)
 {
     //std::cout << "Updating in tracking belief" << std::endl;
@@ -199,10 +201,17 @@ void DespotStaticFunctionOverrideHelperForBeliefTracking::Update(QNode* qnode)
 		qnode->utility_upper_bound = utility_upper;
 	}
 }
-
+*/
 int DespotStaticFunctionOverrideHelperForBeliefTracking::GetObservationParticleSize(VNode* vnode)
     {
-        return vnode->observation_particle_size;
+        if(vnode->observation_particle_size == -1)
+        {
+            return vnode->particles().size();
+        }
+        else
+        {
+            return vnode->observation_particle_size;
+        }
     }
 
 void DespotWithBeliefTracking::CoreSearch(std::vector<State*> particles, RandomStreams& streams) {

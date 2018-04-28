@@ -30,12 +30,16 @@ ParticleUpperBound::~ParticleUpperBound() {
 }
 
 double ParticleUpperBound::Value(const vector<State*>& particles,
-	RandomStreams& streams, History& history) const {
+	RandomStreams& streams, History& history, int observation_particle_size) const {
 	double value = 0;
 	for (int i = 0; i < particles.size(); i++) {
 		State* particle = particles[i];
 		value += particle->weight * Value(*particle);
 	}
+        if(observation_particle_size > 0)
+        {
+            value = value*observation_particle_size*1.0/Globals::config.num_scenarios;
+        }
 	return value;
 }
 
@@ -55,9 +59,14 @@ double TrivialParticleUpperBound::Value(const State& state) const {
 }
 
 double TrivialParticleUpperBound::Value(const vector<State*>& particles,
-	RandomStreams& streams, History& history) const {
+	RandomStreams& streams, History& history, int observation_particle_size) const {
     //std::cout << "Calculating upper bound " << State::Weight(particles) << " " << particles.size() << " " << std::endl;
-	return State::Weight(particles) * model_->GetMaxReward() / (1 - Globals::Discount());
+	double value = State::Weight(particles) * model_->GetMaxReward() / (1 - Globals::Discount());
+        if(observation_particle_size > 0)
+        {
+            value = value*observation_particle_size*1.0/Globals::config.num_scenarios;
+        }
+	return value;
 }
 
 /* =============================================================================
@@ -113,7 +122,7 @@ void LookaheadUpperBound::Init(const RandomStreams& streams) {
 }
 
 double LookaheadUpperBound::Value(const vector<State*>& particles,
-	RandomStreams& streams, History& history) const {
+	RandomStreams& streams, History& history, int observation_particle_size) const {
 	double bound = 0;
 	for (int i = 0; i < particles.size(); i++) {
 		State* particle = particles[i];
@@ -122,6 +131,10 @@ double LookaheadUpperBound::Value(const vector<State*>& particles,
 				* bounds_[particle->scenario_id][streams.position()][indexer_.GetIndex(
 					particle)];
 	}
+        if(observation_particle_size > 0)
+        {
+            bound = bound*observation_particle_size*1.0/Globals::config.num_scenarios;
+        }
 	return bound;
 }
 
@@ -140,7 +153,7 @@ TrivialBeliefUpperBound::TrivialBeliefUpperBound(const DSPOMDP* model) :
 	model_(model) {
 }
 
-double TrivialBeliefUpperBound::Value(const Belief* belief) const {
+double TrivialBeliefUpperBound::Value(const Belief* belief, int observation_particle_size) const {
 	return model_->GetMaxReward() / (1 - Globals::Discount());
 }
 
@@ -160,7 +173,7 @@ double MDPUpperBound::Value(const State& state) const {
 	return policy_[indexer_.GetIndex(&state)].value;
 }
 
-double MDPUpperBound::Value(const Belief* belief) const {
+double MDPUpperBound::Value(const Belief* belief, int observation_particle_size) const {
 	const vector<State*>& particles =
 		static_cast<const ParticleBelief*>(belief)->particles();
 

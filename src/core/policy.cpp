@@ -67,7 +67,7 @@ ValuedAction Policy::RecursiveValue(const vector<State*>& particles,
 	if (streams.Exhausted()
 		|| (history.Size() - initial_depth_
 			>= Globals::config.max_policy_sim_len)) {
-            return particle_lower_bound_->Value(particles);
+            return particle_lower_bound_->Value(particles, obs_particle_size);
             
             
 		
@@ -75,7 +75,7 @@ ValuedAction Policy::RecursiveValue(const vector<State*>& particles,
 		int action = Action(particles, streams, history);
                 if(action < 0)
                 {   
-                    return particle_lower_bound_->Value(particles);
+                    return particle_lower_bound_->Value(particles, obs_particle_size);
                     
                     //return particle_lower_bound_->Value(particles);
                 }
@@ -170,6 +170,11 @@ ValuedAction Policy::RecursiveValue(const vector<State*>& particles,
                             model_->Free(particle);
                         }*/   
 		}
+                if(obs_particle_size > 0)
+                {
+                    value = value*observation_particle_size*1.0/Globals::config.num_scenarios;
+                }
+                
                 /*
                 for (map<OBS_TYPE, vector<State*> >::iterator it = partitions.begin();
 			it != partitions.end(); it++) {
@@ -231,7 +236,8 @@ ValuedAction Policy::RecursiveValue(const vector<State*>& particles,
 			streams.Advance();
 			ValuedAction va = RecursiveValue(it->second, streams, history, observation_particle_size_);
                         //std::cout << "Depth: " << history.Size() << " Got value :" << va << "\n";
-			value += Globals::Discount() * va.value*observation_particle_size_/observation_particle_size;
+			//value += Globals::Discount() * va.value*observation_particle_size_/observation_particle_size;
+                        value += Globals::Discount() * va.value;
 			streams.Back();
 			history.RemoveLast();
 		}

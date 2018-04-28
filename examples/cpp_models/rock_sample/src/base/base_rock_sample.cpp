@@ -610,7 +610,7 @@ public:
 		rs_model_(static_cast<const BaseRockSample*>(model)) {
 	}
 
-	ValuedAction Value(const Belief* belief) const {
+	ValuedAction Value(const Belief* belief, int observation_particle_size) const {
 		const vector<State*>& particles =
 			static_cast<const ParticleBelief*>(belief)->particles();
 		return ValuedAction(Compass::EAST,
@@ -640,7 +640,7 @@ public:
 		policy_ = rs_model_->ComputeOptimalSamplingPolicy();
 	}
 
-	double Value(const Belief* belief) const {
+	double Value(const Belief* belief, int obs_particle_size = -1) const {
 		const vector<State*>& particles =
 			static_cast<const ParticleBelief*>(belief)->particles();
 

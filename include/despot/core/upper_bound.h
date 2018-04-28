@@ -28,7 +28,7 @@ public:
 	virtual void Init(const RandomStreams& streams);
 
 	virtual double Value(const std::vector<State*>& particles,
-		RandomStreams& streams, History& history) const = 0;
+		RandomStreams& streams, History& history, int observation_particle_size) const = 0;
 };
 
 /* =============================================================================
@@ -47,7 +47,7 @@ public:
 	virtual double Value(const State& state) const = 0;
 
 	virtual double Value(const std::vector<State*>& particles,
-		RandomStreams& streams, History& history) const;
+		RandomStreams& streams, History& history, int observation_particle_size) const;
 };
 
 /* =============================================================================
@@ -64,7 +64,7 @@ public:
 	double Value(const State& state) const;
 
 	virtual double Value(const std::vector<State*>& particles,
-		RandomStreams& streams, History& history) const;
+		RandomStreams& streams, History& history, int observation_particle_size) const;
 };
 
 /* =============================================================================
@@ -85,7 +85,7 @@ public:
 	virtual void Init(const RandomStreams& streams);
 
 	double Value(const std::vector<State*>& particles,
-		RandomStreams& streams, History& history) const;
+		RandomStreams& streams, History& history, int observation_particle_size) const;
 };
 
 /* =============================================================================
@@ -97,7 +97,7 @@ public:
 	BeliefUpperBound();
 	virtual ~BeliefUpperBound();
 
-	virtual double Value(const Belief* belief) const = 0;
+	virtual double Value(const Belief* belief, int observation_particle_size= -1) const = 0;
 };
 
 /* =============================================================================
@@ -110,7 +110,7 @@ protected:
 public:
 	TrivialBeliefUpperBound(const DSPOMDP* model);
 
-	double Value(const Belief* belief) const;
+	double Value(const Belief* belief, int observation_particle_size=-1) const;
 };
 
 /* =============================================================================
@@ -130,7 +130,7 @@ public:
   using ParticleUpperBound::Value;
 	double Value(const State& state) const;
 
-	double Value(const Belief* belief) const;
+	double Value(const Belief* belief, int observation_particle_size=-1) const;
 };
 
 } // namespace despot

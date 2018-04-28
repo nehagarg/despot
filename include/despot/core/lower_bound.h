@@ -49,7 +49,7 @@ public:
 	 * to obtain the lower bound.
 	 */
 	virtual ValuedAction Value(const std::vector<State*>& particles,
-		RandomStreams& streams, History& history, int observation_particle_size = -1) const = 0;
+		RandomStreams& streams, History& history, int observation_particle_size) const = 0;
         
        
         
@@ -77,7 +77,7 @@ public:
 		Belief* belief = NULL);
 
 	ValuedAction Value(const std::vector<State*>& particles, RandomStreams& streams,
-		History& history, int observation_particle_size = -1) const;
+		History& history, int observation_particle_size) const;
 };
 
 /* =============================================================================
@@ -100,10 +100,10 @@ public:
 	 * inifnite. The first action that need to be followed to obtain the bound is
 	 * also returned.
 	 */
-	virtual ValuedAction Value(const std::vector<State*>& particles) const = 0;
+	virtual ValuedAction Value(const std::vector<State*>& particles, int observation_particle_size) const = 0;
 
 	ValuedAction Value(const std::vector<State*>& particles,
-		RandomStreams& streams, History& history, int observation_particle_size = -1) const;
+		RandomStreams& streams, History& history, int observation_particle_size) const;
 };
 
 /* =============================================================================
@@ -115,7 +115,7 @@ public:
 	TrivialParticleLowerBound(const DSPOMDP* model);
 
 public:
-	virtual ValuedAction Value(const std::vector<State*>& particles) const;
+	virtual ValuedAction Value(const std::vector<State*>& particles, int observation_particle_size) const;
 };
 
 /* =============================================================================
@@ -133,7 +133,7 @@ public:
 	virtual ValuedAction Search();
 	virtual void Learn(VNode* tree);
 
-	virtual ValuedAction Value(const Belief* belief) const = 0;
+	virtual ValuedAction Value(const Belief* belief, int observation_particle_size = -1) const = 0;
 };
 
 /* =============================================================================
@@ -144,7 +144,7 @@ class TrivialBeliefLowerBound: public BeliefLowerBound {
 public:
 	TrivialBeliefLowerBound(const DSPOMDP* model, Belief* belief = NULL);
 
-	virtual ValuedAction Value(const Belief* belief) const;
+	virtual ValuedAction Value(const Belief* belief, int observation_particle_size = -1) const;
 };
 
 } // namespace despot

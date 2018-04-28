@@ -93,7 +93,8 @@ public:
                 SearchStatistics* statistics = NULL, 
                 DespotStaticFunctionOverrideHelper* o_helper=NULL);
 	static void InitUpperBound(VNode* vnode, ScenarioUpperBound* upper_bound,
-		RandomStreams& streams, History& history);
+		RandomStreams& streams, History& history,
+                DespotStaticFunctionOverrideHelper* o_helper=NULL);
 	static void InitBounds(VNode* vnode, ScenarioLowerBound* lower_bound,
 		ScenarioUpperBound* upper_bound, RandomStreams& streams, History& history, 
                 ScenarioLowerBound* learned_lower_bound = NULL, 

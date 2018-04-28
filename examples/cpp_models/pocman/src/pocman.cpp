@@ -80,7 +80,7 @@ public:
 	}
 
 	double Value(const vector<State*>& particles,
-		RandomStreams& streams, History& history) const {
+		RandomStreams& streams, History& history, int obs_particle_size) const {
 		double total_value = 0;
 		for (int i = 0; i < particles.size(); i++) {
 			PocmanState& state = static_cast<PocmanState&>(*(particles[i]));
@@ -138,7 +138,10 @@ public:
 
 			total_value += state.weight * value;
 		}
-
+                if(obs_particle_size > 0)
+                {
+                    total_value = total_value*obs_particle_size*1.0/Globals::config.num_scenarios;
+                }
 		return total_value;
 	}
 };
@@ -156,7 +159,7 @@ public:
 		pocman_(static_cast<const Pocman*>(model)) {
 	}
 
-	ValuedAction Value(const vector<State*>& particles) const {
+	ValuedAction Value(const vector<State*>& particles, int obs_particle_size) const {
 		const PocmanState& pocstate =
 			static_cast<const PocmanState&>(*particles[0]);
 		vector<int> legal;
@@ -165,10 +168,15 @@ public:
 			if (newpos.x >= 0 && newpos.y >= 0)
 				legal.push_back(a);
 		}
-		return ValuedAction(legal[Random::RANDOM.NextInt(legal.size())],
-			State::Weight(particles)
+                double a_value = State::Weight(particles)
 				* (pocman_->reward_die_
-					+ pocman_->reward_default_ / (1 - Globals::Discount())));
+					+ pocman_->reward_default_ / (1 - Globals::Discount()));
+                if(obs_particle_size > 0)
+                {
+                    a_value = a_value*obs_particle_size*1.0/Globals::config.num_scenarios;
+                }
+		return ValuedAction(legal[Random::RANDOM.NextInt(legal.size())],
+			a_value);
 	}
 };
 

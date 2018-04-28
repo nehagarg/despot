@@ -25,7 +25,7 @@ VNode::VNode(vector<State*>& particles, int depth, QNode* parent,
 	for (int i = 0; i < particles_.size(); i++) {
 		logd << " " << i << " = " << *particles_[i] << endl;
 	}
-        observation_particle_size = particles.size();
+        observation_particle_size = -1;
 }
 
 VNode::VNode(Belief* belief, int depth, QNode* parent, OBS_TYPE edge) :
@@ -203,11 +203,25 @@ void VNode::Free(const DSPOMDP& model) {
 void VNode::PrintPolicyTree(int depth, ostream& os) {
 	if (depth != -1 && this->depth() > depth)
 		return;
+        
+        os << "(" << "d:" << this->default_move().value <<
+		" l:" << this->lower_bound() << ", u:" << this->upper_bound()
+		<< ", w:" << this->Weight() << ", weu:" << DESPOT::WEU(this)
+		<< ")";
+        for (int i = 0; i < this->particles_.size(); i++) {
+            if(i==this->observation_particle_size)
+            {
+                os << "||||";
+            }
+            os << " " << i << " = " << *((this->particles_)[i]) << endl;
+        }
+		
+		os << endl;
 
 	vector<QNode*>& qnodes = children();
 	if (qnodes.size() == 0) {
 		int astar = this->default_move().action;
-		os << this << "-a=" << astar << endl;
+		os << repeat("|   ", this->depth()) << this << "-a=" << astar << endl;
 	} else {
 		QNode* qstar = NULL;
 		for (int a = 0; a < qnodes.size(); a++) {
@@ -217,7 +231,9 @@ void VNode::PrintPolicyTree(int depth, ostream& os) {
 			}
 		}
 
-		os << this << "-a=" << qstar->edge() << endl;
+		os << repeat("|   ", this->depth()) <<this << "-a=" << qstar->edge() << ": " << "(d:" << qstar->default_value << ", l:" << qstar->lower_bound()
+			<< ", u:" << qstar->upper_bound()
+			<< ", r:" << qstar->step_reward << ")"<< endl;
 
 		vector<OBS_TYPE> labels;
 		map<OBS_TYPE, VNode*>& vnodes = qstar->children();

@@ -45,7 +45,7 @@ ValuedAction ScenarioLowerBound::Search() {
 		Globals::config.search_depth);
 	vector<State*> particles = belief_->Sample(Globals::config.num_scenarios);
 
-	ValuedAction va = Value(particles, streams, history_);
+	ValuedAction va = Value(particles, streams, history_, particles.size());
 
 	for (int i = 0; i < particles.size(); i++)
 		model_->Free(particles[i]);
@@ -99,7 +99,7 @@ ParticleLowerBound::ParticleLowerBound(const DSPOMDP* model, Belief* belief) :
 
 ValuedAction ParticleLowerBound::Value(const vector<State*>& particles,
 	RandomStreams& streams, History& history, int observation_particle_size) const {
-	return Value(particles);
+	return Value(particles, observation_particle_size);
 }
 
 /* =============================================================================
@@ -111,9 +111,13 @@ TrivialParticleLowerBound::TrivialParticleLowerBound(const DSPOMDP* model) :
 }
 
 ValuedAction TrivialParticleLowerBound::Value(
-	const vector<State*>& particles) const {
+	const vector<State*>& particles,int observation_particle_size) const {
 	ValuedAction va = model_->GetMinRewardAction();
 	va.value *= State::Weight(particles) / (1 - Globals::Discount());
+        if(observation_particle_size > 0)
+        {
+            va.value *= observation_particle_size*1.0/Globals::config.num_scenarios;
+        }
 	return va;
 }
 
@@ -126,7 +130,7 @@ BeliefLowerBound::BeliefLowerBound(const DSPOMDP* model, Belief* belief) :
 }
 
 ValuedAction BeliefLowerBound::Search() {
-	return Value(belief_);
+	return Value(belief_, -1);
 }
 
 void BeliefLowerBound::Learn(VNode* tree) {
@@ -141,7 +145,7 @@ TrivialBeliefLowerBound::TrivialBeliefLowerBound(const DSPOMDP* model,
 	BeliefLowerBound(model, belief) {
 }
 
-ValuedAction TrivialBeliefLowerBound::Value(const Belief* belief) const {
+ValuedAction TrivialBeliefLowerBound::Value(const Belief* belief, int observation_particle_size) const {
 	ValuedAction va = model_->GetMinRewardAction();
 	va.value *= 1.0 / (1 - Globals::Discount());
 	return va;
