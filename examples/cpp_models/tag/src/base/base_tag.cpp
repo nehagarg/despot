@@ -72,7 +72,6 @@ public:
 	TagSHRPolicy(const DSPOMDP* model, ParticleLowerBound* bound) :
 		Policy(model, bound),
 		tag_model_(static_cast<const BaseTag*>(model)) {
-                    std::cout << "TagSHRPolicy" << std::endl;
 		floor_ = tag_model_->floor();
 	}
 
@@ -652,7 +651,9 @@ ParticleUpperBound* BaseTag::CreateParticleUpperBound(string name) const {
 	} else if (name == "MANHATTAN") {
 		return new TagManhattanUpperBound(this);
 	} else {
-		cerr << "Unsupported particle lower bound: " << name << endl;
+		if (name != "print")
+			cerr << "Unsupported particle lower bound: " << name << endl;
+		cerr << "Supported types: TRIVIAL, MDP, SP, MANHATTAN (default to SP)" << endl;
 		exit(1);
 		return NULL;
 	}
@@ -667,7 +668,10 @@ ScenarioUpperBound* BaseTag::CreateScenarioUpperBound(string name,
 		return new LookaheadUpperBound(this, *this,
 			CreateParticleUpperBound(particle_bound_name));
 	} else {
-		cerr << "Unsupported scenario upper bound: " << name << endl;
+		if (name != "print")
+			cerr << "Unsupported upper bound: " << name << endl;
+		cerr << "Supported types: TRIVIAL, MDP, SP, MANHATTAN, LOOKAHEAD (default to SP)" << endl;
+		cerr << "With base upper bound: LOOKAHEAD" << endl;
 		exit(1);
 		return NULL;
 	}
@@ -681,7 +685,9 @@ BeliefUpperBound* BaseTag::CreateBeliefUpperBound(string name) const {
 	} else if (name == "MANHATTAN") {
 		return new TagManhattanUpperBound(this);
 	} else {
-		cerr << "Unsupported upper bound algorithm: " << name << endl;
+		if (name != "print")
+			cerr << "Unsupported belief upper bound: " << name << endl;
+		cerr << "Supported types: TRIVIAL, MDP, MANHATTAN (default to MDP)" << endl;
 		exit(1);
 		return NULL;
 	}
@@ -731,7 +737,10 @@ ScenarioLowerBound* BaseTag::CreateScenarioLowerBound(string name, string
 		return new MajorityActionPolicy(model, *policy,
 			CreateParticleLowerBound(particle_bound_name));
 	} else {
-		cerr << "Unsupported scenario lower bound: " << name << endl;
+		if (name != "print")
+			cerr << "Unsupported lower bound: " << name << endl;
+		cerr << "Supported types: TRIVIAL, RANDOM, SHR, MODE-MDP, MODE-SP, MAJORITY-MDP, MAJORITY-SP (default to MODE-MDP)" << endl;
+		cerr << "With base lower bound: except TRIVIAL" << endl;
 		exit(1);
 		return NULL;
 	}
@@ -767,7 +776,7 @@ void BaseTag::PrintState(const State& s, ostream& out) const {
 	int aindex = rob_[state.state_id];
 	int oindex = opp_[state.state_id];
 
-	for (int y = 0; y < floor_.num_rows(); y++) {
+	for (int y = floor_.num_rows()-1; y >= 0; y--) {
 		for (int x = 0; x < floor_.num_cols(); x++) {
 			int index = floor_.GetIndex(x, y);
 			if (index == Floor::INVALID)
@@ -790,9 +799,9 @@ void BaseTag::PrintBelief(const Belief& belief, ostream& out) const {
 
 void BaseTag::PrintAction(int action, ostream& out) const {
 	switch(action) {
-		case 0: out << "South" << endl; break;
+		case 0: out << "North" << endl; break;
 		case 1: out << "East" << endl; break;
-		case 2: out << "North" << endl; break;
+		case 2: out << "South" << endl; break;
 		case 3: out << "West" << endl; break;
 		case 4: out << "Tag" << endl; break;
 		default: out << "Wrong action" << endl; exit(1);
