@@ -31,10 +31,10 @@ Adventurer* Adventurer::current_ = NULL;
 Adventurer::Adventurer(int num_goals) {
 	current_ = this;
         std::cout << "Num goals = " <<  num_goals << std::endl;
-	if (num_goals != 2 && num_goals != 50&& num_goals != 1 ) {
+	/*if (num_goals != 2 && num_goals != 50&& num_goals != 1 ) {
 		cerr << "[Adventurer::Adventurer] Only 1, 2 or 50 goals are supported." << endl;
 		exit(0);
-	}
+	}*/
 
 	string map =
 		num_goals == 2 ?
@@ -57,7 +57,15 @@ Adventurer::Adventurer(int num_goals) {
 			+ string("0.0") // observation noise
 		);
         }
-
+        if(num_goals == 500)
+        {
+            map = (string("mapSize = 5 nGoal = 50\n")
+			+ string("0.5 0.5 0.5 0.5 0.5\n") // probabilities of being trapped
+			+ string("0.02 11 0.02 12 0.02 13 0.02 14 0.02 15 0.02 16 0.02 17 0.02 18 0.02 19 0.02 20 0.02 21 0.02 22 0.02 23 0.02 24 0.02 25 0.02 26 0.02 27 0.02 28 0.02 29 0.02 30 0.02 31 0.02 32 0.02 33 0.02 34 0.02 35 0.02 36 0.02 37 0.02 38 0.02 39 0.02 40 0.02 41 0.02 42 0.02 43 0.02 44 0.02 45 0.02 46 0.02 47 0.02 48 0.02 49 0.02 50 0.02 51 0.02 52 0.02 53 0.02 54 0.02 55 0.02 56 0.02 57 0.02 58 0.02 59 0.02 150\n")  // goal probability, goal reward
+			+ string("0.3") // observation noise
+		);
+        }
+        
 	istringstream iss(map);
 	Init(iss);
 	// PrintPOMDPX();
