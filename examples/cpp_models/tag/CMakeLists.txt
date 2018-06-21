@@ -32,6 +32,16 @@ target_link_libraries("${PROJECT_NAME}_tag"
   "${PROJECT_NAME}"
 )
 
+
+add_executable("${PROJECT_NAME}_danger_tag"
+  src/base/base_tag.cpp
+  src/laser_tag/laser_tag.cpp     
+  src/danger_tag/danger_tag.cpp
+  src/danger_tag/main.cpp
+)
+target_link_libraries("${PROJECT_NAME}_danger_tag"
+  "${PROJECT_NAME}"
+)
 install(TARGETS
     "${PROJECT_NAME}_laser_tag"
     "${PROJECT_NAME}_noisy_laser_tag"

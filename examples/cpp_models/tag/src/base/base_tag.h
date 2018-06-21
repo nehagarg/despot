@@ -44,7 +44,18 @@ protected:
 	std::vector<TagState*> states_;
 	std::vector<int> rob_; // rob_[s]: robot cell index for state s
 	std::vector<int> opp_; // opp_[s]: opponent cell index for state s
-
+        
+        
+        //Used for danger tag only
+        //==========================
+        static double DANGER_PENALTY ;
+        
+        std::vector< std::vector<bool> > dangers;
+	std::vector<int> rob_start_positions; // possible positions where robot may start
+	Coord* opp_start_input; // opponent starting position, if defined in input
+        double movement_error;
+        //==========================
+        
 	std::vector<std::vector<std::vector<State> > > transition_probabilities_; //state, action, [state, weight]
 	OBS_TYPE same_loc_obs_;
 
@@ -55,7 +66,7 @@ protected:
   std::map<int, double> OppTransitionDistribution(int state) const;
 
 	void ReadConfig(std::istream& is);
-	void Init(std::istream& is);
+	virtual void Init(std::istream& is);
 	Coord MostLikelyOpponentPosition(const std::vector<State*>& particles) const;
 	Coord MostLikelyRobPosition(const std::vector<State*>& particles) const;
 	const TagState& MostLikelyState(const std::vector<State*>& particles) const;
@@ -71,7 +82,12 @@ protected:
 public:
   bool robot_pos_unknown_;
 	static BaseTag* current_;
-
+        //Added for danger tag
+        static int NUM_ACTIONS;
+        static int ERRORS_PER_DIRECTION;
+        static const int ERROR_MOVES[8][2];
+        static double DEFAULT_MOVEMENT_ERROR;
+        
 	BaseTag();
 	BaseTag(std::string params_file);
 	virtual ~BaseTag();
@@ -80,11 +96,11 @@ public:
 		double& reward) const;
 	virtual bool Step(State& state, double random_num, int action,
 		double& reward, OBS_TYPE& obs) const = 0;
-	inline int NumActions() const {
-		return 5;
+	virtual int NumActions() const {
+		return NUM_ACTIONS;
 	}
-	inline int TagAction() const {
-		return 4;
+	virtual int TagAction() const {
+		return NUM_ACTIONS-1;
 	}
 	int NumStates() const;
 	inline int GetIndex(const State* state) const {
@@ -110,7 +126,7 @@ public:
 	const std::vector<State>& TransitionProbability(int s, int a) const;
 	double Reward(int s, int a) const;
 
-	State* CreateStartState(std::string type = "DEFAULT") const;
+	virtual State* CreateStartState(std::string type = "DEFAULT") const;
 	virtual Belief* InitialBelief(const State* start, std::string type = "DEFAULT") const = 0;
 
 	inline double GetMaxReward() const {
@@ -133,7 +149,7 @@ public:
 	void PrintState(const State& state, std::ostream& out = std::cout) const;
 	void PrintBelief(const Belief& belief, std::ostream& out = std::cout) const;
 	virtual void PrintObs(const State& state, OBS_TYPE obs, std::ostream& out = std::cout) const = 0;
-	void PrintAction(int action, std::ostream& out = std::cout) const;
+	virtual void PrintAction(int action, std::ostream& out = std::cout) const;
 
 	State* Allocate(int state_id, double weight) const;
 	State* Copy(const State* particle) const;

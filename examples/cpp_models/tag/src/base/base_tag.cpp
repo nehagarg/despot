@@ -1,6 +1,7 @@
 #include <queue>
 
 #include "base_tag.h"
+//#include "examples/cpp_models/tag/src/danger_tag/danger_tag.h"
 #include <despot/util/coord.h>
 #include <despot/util/floor.h>
 #include <despot/solver/pomcp.h>
@@ -415,7 +416,21 @@ public:
  * BaseTag class
  * ==============================================================================*/
 double BaseTag::TAG_REWARD = 10;
+double BaseTag::DANGER_PENALTY = 0;
+int BaseTag::NUM_ACTIONS = 5;
+int BaseTag::ERRORS_PER_DIRECTION = 0;
+double BaseTag::DEFAULT_MOVEMENT_ERROR = 0.0;
 
+const int BaseTag::ERROR_MOVES[8][2] = {
+	{7, 4},
+	{4, 5},
+	{5, 6},
+	{6, 7},
+	{0, 1},
+	{1, 2},
+	{2, 3},
+	{3, 0}
+};
 string BaseTag::RandomMap(int height, int width, int obstacles) {
 	string map(height * (width + 1) - 1, '.');
 	for (int h = 1; h < height; h++)
@@ -433,18 +448,29 @@ string BaseTag::RandomMap(int height, int width, int obstacles) {
 }
 
 void BaseTag::ReadConfig(istream& is) {
+        movement_error = DEFAULT_MOVEMENT_ERROR;
 	string line, key, val;
 	while (is >> key >> val) {
 		if (key == "mapSize") {
 			int nrows, ncols;
 			is >> nrows >> ncols;
 			floor_ = Floor(nrows, ncols);
-
+                        
+			// column-major, so that cells can be accessed as [x][y]
+			dangers = vector<vector<bool>>(ncols, (vector<bool>(nrows, false)));
+                        
 			for (int y = 0; y < nrows; y++) {
 				is >> line;
 				for (int x = 0; x < ncols; x++) {
 					if (line[x] != '#') {
 						floor_.AddCell(Coord(x, y));
+					}
+                                        if (line[x] == 'O') {
+						opp_start_input = new Coord(x, y);
+					} else if (line[x] == 'R') {
+						rob_start_positions.push_back(floor_.GetIndex(x, y));
+					} else if (line[x] == '@') {
+						dangers[x][y] = true;
 					}
 				}
 			}
@@ -493,6 +519,7 @@ void BaseTag::Init(istream& is) {
 		}
 	}
 
+        std::cout << "Num Actions " << NumActions() << " Tag Action " << TagAction() << std::endl;
 	// Build transition matrix
 	transition_probabilities_.resize(NumStates());
 	for (int s = 0; s < NumStates(); s++) {
@@ -510,9 +537,34 @@ void BaseTag::Init(istream& is) {
 					State next;
 					next.state_id = RobOppIndicesToStateIndex(next_rob,
 						it->first);
-					next.weight = it->second;
+					
+                                        // No "error" for Tag action
+					if (movement_error > Globals::TINY && a != TagAction()) {
+						next.weight = it->second * (1.0 - movement_error);
+						transition_probabilities_[s][a].push_back(next);
+					} else {
+						next.weight = it->second;
+						transition_probabilities_[s][a].push_back(next);
+						continue;
+					}
+                                        
+                                        //next.weight = it->second;
 
-					transition_probabilities_[s][a].push_back(next);
+					//transition_probabilities_[s][a].push_back(next);
+                                        
+                                        // TODO: Consider changing this to the "chances" method used for opp transitions
+					for (int i = 0; i < ERRORS_PER_DIRECTION; i++) {
+						State errState;
+						Coord errDirection = Compass::DIRECTIONS[ERROR_MOVES[a][i]];
+						errState.weight = movement_error * it->second * (1.0 / ERRORS_PER_DIRECTION);
+
+						if (floor_.Inside(floor_.GetCell(rob_[s]) + errDirection)) {
+							errState.state_id = RobOppIndicesToStateIndex(floor_.GetIndex(floor_.GetCell(rob_[s]) + errDirection), it->first);
+						} else {
+							errState.state_id = RobOppIndicesToStateIndex(rob_[s], it->first);
+						}
+						transition_probabilities_[s][a].push_back(errState);
+					}
 				}
 			}
 		}
@@ -525,20 +577,8 @@ BaseTag::~BaseTag() {
 bool BaseTag::Step(State& s, double random_num, int action,
 	double& reward) const {
 	TagState& state = static_cast<TagState&>(s);
-
-	bool terminal = false;
-	if (action == TagAction()) {
-		if (rob_[state.state_id] == opp_[state.state_id]) {
-			reward = TAG_REWARD;
-			terminal = true;
-		} else {
-			reward = -TAG_REWARD;
-		}
-	} else {
-		reward = -1;
-	}
-
-	const vector<State>& distribution =
+        
+        const vector<State>& distribution =
 		transition_probabilities_[state.state_id][action];
 	double sum = 0;
 	for (int i = 0; i < distribution.size(); i++) {
@@ -549,7 +589,28 @@ bool BaseTag::Step(State& s, double random_num, int action,
 			break;
 		}
 	}
+        
+        
+	bool terminal = false;
+	if (action == TagAction()) {
+		if (rob_[state.state_id] == opp_[state.state_id]) {
+			reward = TAG_REWARD;
+			terminal = true;
+		} else {
+			reward = -TAG_REWARD;
+		}
+	} else {
+            Coord rob_position = floor_.GetCell(rob_[state.state_id]);
+		if (dangers[rob_position.x][rob_position.y]) {
+			reward = DANGER_PENALTY;
+		} else {
+			// TODO: use variable instead of magic number (something like MOVEMENT_PENALTY?)
+			reward = -1;
+		}
+		//reward = -1;
+	}
 
+	
 	return terminal;
 }
 
@@ -787,6 +848,8 @@ void BaseTag::PrintState(const State& s, ostream& out) const {
 				out << "R";
 			else if (index == oindex)
 				out << "O";
+                        else if (dangers[x][y]) 
+				out << "@";
 			else
 				out << ".";
 		}
