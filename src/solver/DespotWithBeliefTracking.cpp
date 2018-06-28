@@ -214,7 +214,7 @@ int DespotStaticFunctionOverrideHelperForBeliefTracking::GetObservationParticleS
         }
     }
 
-void DespotWithBeliefTracking::CoreSearch(std::vector<State*> particles, RandomStreams& streams) {
+void DespotWithBeliefTracking::CoreSearch(std::vector<State*>& particles, RandomStreams& streams) {
     //std::cout << "Initiallizing contruct tree with learned policy solver ##################" << std::endl;
     //DESPOT::CoreSearch(particles, streams);
 

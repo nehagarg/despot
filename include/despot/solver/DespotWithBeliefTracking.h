@@ -44,7 +44,7 @@ public:
 
     virtual ~DespotWithBeliefTracking(){};
     
-    void CoreSearch(std::vector<State*> particles, RandomStreams& streams);
+    void CoreSearch(std::vector<State*>& particles, RandomStreams& streams);
 
 private:
 

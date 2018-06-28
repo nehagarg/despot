@@ -912,7 +912,7 @@ void DESPOT::Update(int action, OBS_TYPE obs) {
         statistics_ = new SearchStatistics();
     }
     
-    void DESPOT::CoreSearch(std::vector<State*> particles, RandomStreams& streams) {
+    void DESPOT::CoreSearch(std::vector<State*>& particles, RandomStreams& streams) {
         
 	root_ = ConstructTree(particles, streams, lower_bound_, upper_bound_,
 		model_, history_, Globals::config.time_per_move, statistics_);
