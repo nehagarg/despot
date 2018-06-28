@@ -346,8 +346,13 @@ public:
 		chain_model_(model) {
 	}
 
-	ValuedAction Value(const vector<State*>& particles, RandomStreams& streams,
-		History& history) const {
+
+        virtual ValuedAction Value(ParticleNode* particle_node, std::vector< double>& particle_weights, std::vector<int>& obs_particle_ids, RandomStreams& streams, History& history, int observation_particle_size) const {
+
+            vector<State*> particles;
+            ParticleNode::particles_vector(particle_node, obs_particle_ids, observation_particle_size, particles);
+//	ValuedAction Value(const vector<State*>& particles, RandomStreams& streams,
+//		History& history) const {
 		int num_mdp_states = chain_model_->NUM_MDP_STATES, num_mdp_actions =
 			chain_model_->NumActions();
 
@@ -398,7 +403,7 @@ public:
 				&& sim_len < Globals::config.max_policy_sim_len) {
 				chain_model_->Step(*copy, streams.Entry(copy->scenario_id),
 					policy[copy->mdp_state].action, reward, obs);
-				value += copy->weight * reward * discount;
+				value += copy->Weight(particle_weights) * reward * discount;
 				discount *= Globals::Discount();
 				streams.Advance();
 				sim_len++;
@@ -423,15 +428,37 @@ public:
 		chain_model_(model) {
 	}
 
-	int Action(const vector<State*>& particles, RandomStreams& streams,
-		History& history) const {
+                int Action(ParticleNode* particle_node, std::vector<double>& particle_weights, std::vector<int>& obs_particle_ids, RandomStreams& streams, History& history, int observation_particle_size) const {
+	//int Action(const vector<State*>& particles, RandomStreams& streams,
+	//	History& history) const {
 		int num_mdp_states = chain_model_->NUM_MDP_STATES, num_mdp_actions =
 			chain_model_->NumActions();
 
 		ChainState* mean = static_cast<ChainState*>(chain_model_->Allocate(-1,
 			1.0));
 		mean->Init(num_mdp_states, num_mdp_actions);
-
+                vector<State*> particles;
+                ParticleNode::particles_vector(particle_node, obs_particle_ids, observation_particle_size, particles, true);
+                /*vector<State*> particles;
+                if(observation_particle_size > 0)
+                {
+                    for (map<int, State*>::iterator it = particle_node->particles_.begin();
+                    it != particle_node->particles_.end(); it++)
+                    {
+                        State* particle = it->second;
+                        particles.push_back(particle);
+                    }
+                }
+                else
+                {
+                    for(int i = 0; i < obs_particle_ids.size(); i++)
+                    {
+                     int ii = obs_particle_ids[i];
+                     State* particle = particle_node->particle(ii);
+                     particles.push_back(particle);
+                    } 
+                }*/
+                
 		// mean->mdp_state = cur_state_;
 		for (int i = 0; i < particles.size(); i++) {
 			State* particle = particles[i];
@@ -559,7 +586,7 @@ void Chain::PrintAction(int action, ostream& out) const {
 State* Chain::Allocate(int state_id, double weight) const {
 	ChainState* particle = memory_pool_.Allocate();
 	particle->state_id = state_id;
-	particle->weight = weight;
+	particle->Weight(weight);
 	return particle;
 }
 

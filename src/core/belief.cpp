@@ -30,7 +30,7 @@ vector<State*> Belief::Sample(int num, vector<State*> particles,
 	double unit = 1.0 / num;
 	double mass = Random::RANDOM.NextDouble(0, unit);
 	int pos = 0;
-	double cur = particles[0]->weight;
+	double cur = particles[0]->Weight();
 
 	vector<State*> sample;
 	for (int i = 0; i < num; i++) {
@@ -39,13 +39,13 @@ vector<State*> Belief::Sample(int num, vector<State*> particles,
 			if (pos == particles.size())
 				pos = 0;
 
-			cur += particles[pos]->weight;
+			cur += particles[pos]->Weight();
 		}
 
 		mass += unit;
 
 		State* particle = model->Copy(particles[pos]);
-		particle->weight = unit;
+		particle->Weight(unit);
 		sample.push_back(particle);
 	}
 
@@ -65,7 +65,7 @@ vector<State*> Belief::Resample(int num, const vector<State*>& belief,
 	double unit = 1.0 / num;
 	double mass = Random::RANDOM.NextDouble(0, unit);
 	int pos = 0;
-	double cur = belief[0]->weight;
+	double cur = belief[0]->Weight();
 
 	double reward;
 	OBS_TYPE obs;
@@ -81,7 +81,7 @@ vector<State*> Belief::Resample(int num, const vector<State*>& belief,
 			if (pos == belief.size())
 				pos = 0;
 
-			cur += belief[pos]->weight;
+			cur += belief[pos]->Weight();
 		}
 		trial++;
 
@@ -109,7 +109,7 @@ vector<State*> Belief::Resample(int num, const vector<State*>& belief,
 		if (particle->IsAllocated()) {
 			count++;
 
-			particle->weight = log_wgt;
+			particle->Weight(log_wgt);
 			sample.push_back(particle);
 
 			max_wgt = max(log_wgt, max_wgt);
@@ -118,7 +118,7 @@ vector<State*> Belief::Resample(int num, const vector<State*>& belief,
 		// Remove particles with very small weights
 		if (count == num) {
 			for (int i = sample.size() - 1; i >= 0; i--)
-				if (sample[i]->weight - max_wgt < log(1.0 / num)) {
+				if (sample[i]->Weight() - max_wgt < log(1.0 / num)) {
 					model->Free(sample[i]);
 					sample.erase(sample.begin() + i);
 					count--;
@@ -128,11 +128,15 @@ vector<State*> Belief::Resample(int num, const vector<State*>& belief,
 
 	double total_weight = 0;
 	for (int i = 0; i < sample.size(); i++) {
-		sample[i]->weight = exp(sample[i]->weight - max_wgt);
-		total_weight += sample[i]->weight;
+            double sample_weight = sample[i]->Weight();
+		sample_weight = exp(sample_weight - max_wgt);
+                sample[i]->Weight(sample_weight);
+		total_weight += sample_weight;
 	}
 	for (int i = 0; i < sample.size(); i++) {
-		sample[i]->weight = sample[i]->weight / total_weight;
+            double sample_weight = sample[i]->Weight();
+		sample_weight = sample_weight / total_weight;
+                sample[i]->Weight(sample_weight);
 	}
 
 	logd << "[Belief::Resample] Resampled " << sample.size() << " particles"
@@ -158,7 +162,7 @@ vector<State*> Belief::Resample(int num, const DSPOMDP* model,
 		double prob = model->ObsProb(obs, *state, action);
 		if (prob > 0) {
 			State* particle = model->Copy(state);
-			particle->weight = prob;
+			particle->Weight(prob);
 			sample.push_back(particle);
 		}
 	}
@@ -205,7 +209,7 @@ vector<State*> Belief::Resample(int num, const Belief& belief, History history,
 
 		// Add to sample if survived
 		if (particle->IsAllocated()) {
-			particle->weight = log_wgt;
+			particle->Weight(log_wgt);
 			sample.push_back(particle);
 
 			max_wgt = max(log_wgt, max_wgt);
@@ -215,7 +219,7 @@ vector<State*> Belief::Resample(int num, const Belief& belief, History history,
 		// Remove particles with very small weights
 		if (count == num) {
 			for (int i = sample.size() - 1; i >= 0; i--) {
-				if (sample[i]->weight - max_wgt < log(1.0 / num)) {
+				if (sample[i]->Weight() - max_wgt < log(1.0 / num)) {
 					belief.model_->Free(sample[i]);
 					sample.erase(sample.begin() + i);
 					count--;
@@ -232,11 +236,15 @@ vector<State*> Belief::Resample(int num, const Belief& belief, History history,
 
 	double total_weight = 0;
 	for (int i = 0; i < sample.size(); i++) {
-		sample[i]->weight = exp(sample[i]->weight - max_wgt);
-		total_weight += sample[i]->weight;
+            double sample_weight = sample[i]->Weight();
+		sample_weight = exp(sample_weight - max_wgt);
+                sample[i]->Weight(sample_weight);
+		total_weight += sample_weight;
 	}
 	for (int i = 0; i < sample.size(); i++) {
-		sample[i]->weight = sample[i]->weight / total_weight;
+            double sample_weight = sample[i]->Weight();
+		sample_weight = sample_weight / total_weight;
+                sample[i]->Weight(sample_weight);
 	}
 
 	logd << "[Belief::Resample] Resampled " << sample.size() << " particles"
@@ -279,7 +287,9 @@ ParticleBelief::ParticleBelief(vector<State*> particles, const DSPOMDP* model,
 				for (int j = 0; j < particles_.size(); j++) {
 					State* particle = particles_[j];
 					State* copy = model_->Copy(particle);
-					copy->weight /= n;
+                                        double copy_weight = copy->Weight();
+					copy_weight /= n;
+                                        copy->Weight(copy_weight);
 					new_particles.push_back(copy);
 				}
 			}
@@ -346,8 +356,10 @@ void ParticleBelief::Update(int action, OBS_TYPE obs) {
                 //std::cout << "Obs Prob:" <<  prob << std::endl;
                 
 		if (!terminal && prob) { // Terminal state is not required to be explicitly represented and may not have any observation
-			particle->weight *= prob;
-			total_weight += particle->weight;
+                    double particle_weight = particle->Weight();
+			particle_weight *= prob;
+                        particle->Weight(particle_weight);
+			total_weight += particle_weight;
 			updated.push_back(particle);
 		} else {
 			model_->Free(particle);
@@ -392,7 +404,7 @@ void ParticleBelief::Update(int action, OBS_TYPE obs) {
 		total_weight = 0;
                 for (int i = 0; i < particles_.size(); i++) {
 		    State* particle = particles_[i];
-                    total_weight = total_weight + particle->weight;
+                    total_weight = total_weight + particle->Weight();
                 }
 	}
 
@@ -400,8 +412,10 @@ void ParticleBelief::Update(int action, OBS_TYPE obs) {
 	double weight_square_sum = 0;
 	for (int i = 0; i < particles_.size(); i++) {
 		State* particle = particles_[i];
-		particle->weight /= total_weight;
-		weight_square_sum += particle->weight * particle->weight;
+                double particle_weight = particle->Weight();
+		particle_weight /= total_weight;
+                particle->Weight(particle_weight);
+		weight_square_sum += particle_weight * particle_weight;
 	}
 
 	// Resample if the effective number of particles is "small"
@@ -431,7 +445,7 @@ string ParticleBelief::text() const {
 	ostringstream oss;
 	map<string, double> pdf;
 	for (int i = 0; i < particles_.size(); i++) {
-		pdf[particles_[i]->text()] += particles_[i]->weight;
+		pdf[particles_[i]->text()] += particles_[i]->Weight();
 	}
 
 	oss << "pdf for " << particles_.size() << " particles:" << endl;

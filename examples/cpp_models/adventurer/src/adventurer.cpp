@@ -155,12 +155,12 @@ bool Adventurer::Step(State& s, double random_num, int action, double& reward,
 	double sum = 0;
 	for (int i = 0; i < distribution.size(); i++) {
 		const State& next = distribution[i];
-		sum += next.weight;
+		sum += next.Weight();
 		if (sum >= random_num) {
 			terminal = false;
 			state.state_id = next.state_id;
 
-			random_num = (sum - random_num) / next.weight;
+			random_num = (sum - random_num) / next.Weight();
 			break;
 		}
 	}
@@ -210,7 +210,7 @@ void Adventurer::PrintTransitions() const {
 				<< " outcomes for action " << a << endl;
 			for (int i = 0; i < transition_probabilities_[s][a].size(); i++) {
 				const State& next = transition_probabilities_[s][a][i];
-				cout << "Next = (" << next.state_id << ", " << next.weight
+				cout << "Next = (" << next.state_id << ", " << next.Weight()
 					<< ")" << endl;
 				PrintState(*GetState(next.state_id));
 			}
@@ -290,7 +290,62 @@ public:
 		regdemo_model_(static_cast<const Adventurer*>(model)) {
 	}
 
-	int Action(const vector<State*>& particles, RandomStreams& streams,
+
+        int Action(ParticleNode* particle_node, std::vector<double>& particle_weights, std::vector<int>& obs_particle_ids, RandomStreams& streams, History& history, int observation_particle_size) const
+        {
+            bool at_goal = true;
+            vector<State*> particles;
+            ParticleNode::particles_vector(particle_node, obs_particle_ids, observation_particle_size, particles, true);
+            
+            for (int i = 0; i < particles.size(); i++) {
+			State* particle = particles[i];
+			if (static_cast<AdventurerState*>(particle)->state_id
+				% regdemo_model_->size_ != regdemo_model_->size_ - 1) {
+				at_goal = false;
+			}
+		}
+
+		if (at_goal) {
+			return regdemo_model_->A_STAY;
+		}
+		return regdemo_model_->A_RIGHT;
+        }
+       /* if(observation_particle_size > 0)
+        {
+            
+            for (map<int, State*>::iterator it = particle_node->particles_.begin();
+                    it != particle_node->particles_.end(); it++)
+            {
+                State* particle = it->second;
+                if (static_cast<AdventurerState*>(particle)->state_id
+				% regdemo_model_->size_ != regdemo_model_->size_ - 1) {
+				at_goal = false;
+			}
+            }
+        }
+        else
+        {
+         for(int i = 0; i < obs_particle_ids.size(); i++)
+            {
+             int ii = obs_particle_ids[i];
+             State* particle = particle_node->particle(ii);
+             if (static_cast<AdventurerState*>(particle)->state_id
+				% regdemo_model_->size_ != regdemo_model_->size_ - 1) {
+				at_goal = false;
+			}
+            }   
+        
+        }
+		 
+
+		if (at_goal) {
+			return regdemo_model_->A_STAY;
+		}
+		return regdemo_model_->A_RIGHT;
+            
+        }*/
+
+	/*int Action(const vector<State*>& particles, RandomStreams& streams,
 		History& history) const {
 		bool at_goal = true;
 		for (int i = 0; i < particles.size(); i++) {
@@ -305,7 +360,8 @@ public:
 			return regdemo_model_->A_STAY;
 		}
 		return regdemo_model_->A_RIGHT;
-	}
+	}*/
+        
 };
 
 ScenarioLowerBound* Adventurer::CreateScenarioLowerBound(string name,
@@ -381,7 +437,7 @@ void Adventurer::PrintAction(int action, ostream& out) const {
 State* Adventurer::Allocate(int state_id, double weight) const {
 	AdventurerState* state = memory_pool_.Allocate();
 	state->state_id = state_id;
-	state->weight = weight;
+	state->Weight(weight);
 	return state;
 }
 
@@ -447,7 +503,7 @@ Belief* Adventurer::Tau(const Belief* belief, int action, OBS_TYPE obs) const {
 			state)][action];
 		for (int j = 0; j < distribution.size(); j++) {
 			const State& next = distribution[j];
-			double p = state->weight * next.weight
+			double p = state->Weight() * next.Weight()
 				* ObsProb(obs, *(states_[next.state_id]), action);
 			probs[next.state_id] += p;
 			sum += p;
@@ -458,7 +514,7 @@ Belief* Adventurer::Tau(const Belief* belief, int action, OBS_TYPE obs) const {
 	for (int i = 0; i < NumStates(); i++) {
 		if (probs[i] > 0) {
 			State* new_particle = Copy(states_[i]);
-			new_particle->weight = probs[i] / sum;
+			new_particle->Weight(probs[i] / sum);
 			new_particles.push_back(new_particle);
 			probs[i] = 0;
 		}
@@ -478,7 +534,7 @@ void Adventurer::Observe(const Belief* belief, int action,
 		for (int j = 0; j < distribution.size(); j++) {
 			const State& next = distribution[j];
 			for (OBS_TYPE obs = 0; obs < num_goals_; obs++) {
-				double p = state->weight * next.weight
+				double p = state->Weight() * next.Weight()
 					* ObsProb(obs, next, action);
 				obss[obs] += p;
 			}
@@ -494,7 +550,7 @@ double Adventurer::StepReward(const Belief* belief, int action) const {
 	for (int i = 0; i < particles.size(); i++) {
 		State* particle = particles[i];
 		AdventurerState* state = static_cast<AdventurerState*>(particle);
-		sum += state->weight * Reward(state->state_id, action);
+		sum += state->Weight() * Reward(state->state_id, action);
 	}
 
 	return sum;
@@ -574,8 +630,8 @@ void Adventurer::PrintPOMDPX() const {
 				const State& next = transition_probabilities_[s][a][i];
 				cout << "<Entry> <Instance> " << actions[a] << " s" << s << " s"
 					<< next.state_id << " </Instance> <ProbTable> "
-					<< next.weight << " </ProbTable> </Entry>" << endl;
-				sum += next.weight;
+					<< next.Weight() << " </ProbTable> </Entry>" << endl;
+				sum += next.Weight();
 			}
 
 			if (fabs(sum - 1.0) > 0.000001)

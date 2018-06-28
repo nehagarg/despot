@@ -130,7 +130,7 @@ ScenarioLowerBound* Bridge::CreateScenarioLowerBound(string name,
 State* Bridge::Allocate(int state_id, double weight) const {
 	BridgeState* particle = memory_pool_.Allocate();
 	particle->state_id = state_id;
-	particle->weight = weight;
+	particle->Weight(weight);
 	return particle;
 }
 
@@ -170,7 +170,7 @@ Belief* Bridge::Tau(const Belief* belief, int action, OBS_TYPE obs) const {
 				continue;
 		}
 
-		double p = state->weight * (obs == 1);
+		double p = state->Weight() * (obs == 1);
 		probs[next_pos] += p;
 		sum += p;
 	}
@@ -180,7 +180,7 @@ Belief* Bridge::Tau(const Belief* belief, int action, OBS_TYPE obs) const {
 		if (probs[i] > 0) {
 			BridgeState* new_particle = static_cast<BridgeState*>(Allocate(i));
 			new_particle->position = i;
-			new_particle->weight = probs[i] / sum;
+			new_particle->Weight( probs[i] / sum);
 			new_particles.push_back(new_particle);
 			probs[i] = 0;
 		}
@@ -222,7 +222,7 @@ double Bridge::StepReward(const Belief* belief, int action) const {
 			reward = -20 - state->position;
 		}
 
-		sum += state->weight * reward;
+		sum += state->Weight() * reward;
 	}
 
 	return sum;

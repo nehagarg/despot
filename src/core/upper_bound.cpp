@@ -29,12 +29,33 @@ ParticleUpperBound::ParticleUpperBound() {
 ParticleUpperBound::~ParticleUpperBound() {
 }
 
-double ParticleUpperBound::Value(const vector<State*>& particles,
+double ParticleUpperBound::Value(ParticleNode* particle_node, std::vector<double>& particle_weights,
+		std::vector<int> & obs_particle_ids, 
 	RandomStreams& streams, History& history, int observation_particle_size) const {
 	double value = 0;
+        std::vector<State*> particles;
+        ParticleNode::particles_vector(particle_node, obs_particle_ids, observation_particle_size, particles);
+        /*
+        if(observation_particle_size > 0)
+        {
+            for (map<int, State*>::iterator it = particle_node->particles_.begin();
+                    it != particle_node->particles_.end(); it++)
+            {
+                value +=particle_weights.at(it->first)*Value(*(it->second));
+            }
+        }
+        else
+        {
+            for(int i = 0; i < obs_particle_ids.size(); i++)
+            {
+                int ii = obs_particle_ids[i];
+                value += particle_node->particle(ii)->Weight(particle_weights)*Value(*(particle_node->particle(ii)));
+            }  
+        }
+        */
 	for (int i = 0; i < particles.size(); i++) {
 		State* particle = particles[i];
-		value += particle->weight * Value(*particle);
+		value += particle->Weight(particle_weights) * Value(*particle);
 	}
         if(observation_particle_size > 0)
         {
@@ -58,10 +79,11 @@ double TrivialParticleUpperBound::Value(const State& state) const {
 	return model_->GetMaxReward() / (1 - Globals::Discount());
 }
 
-double TrivialParticleUpperBound::Value(const vector<State*>& particles,
+double TrivialParticleUpperBound::Value(ParticleNode* particle_node, std::vector<double>& particle_weights,
+		std::vector<int> & obs_particle_ids, 
 	RandomStreams& streams, History& history, int observation_particle_size) const {
     //std::cout << "Calculating upper bound " << State::Weight(particles) << " " << particles.size() << " " << std::endl;
-	double value = State::Weight(particles) * model_->GetMaxReward() / (1 - Globals::Discount());
+	double value = State::Weight(particle_node,particle_weights,obs_particle_ids, observation_particle_size) * model_->GetMaxReward() / (1 - Globals::Discount());
         if(observation_particle_size > 0)
         {
             value = value*observation_particle_size*1.0/Globals::config.num_scenarios;
@@ -121,16 +143,31 @@ void LookaheadUpperBound::Init(const RandomStreams& streams) {
 	}
 }
 
-double LookaheadUpperBound::Value(const vector<State*>& particles,
+double LookaheadUpperBound::Value(ParticleNode* particle_node, std::vector<double>& particle_weights,
+		std::vector<int> & obs_particle_ids, 
 	RandomStreams& streams, History& history, int observation_particle_size) const {
 	double bound = 0;
-	for (int i = 0; i < particles.size(); i++) {
+        vector<State*> particles;
+        ParticleNode::particles_vector(particle_node,obs_particle_ids, observation_particle_size, particles, true);
+        for (int i = 0; i < particles.size(); i++)
+        {
+            State* particle = particles[i];
+            bound +=
+			particle->Weight(particle_weights)
+				* bounds_[particle->scenario_id][streams.position()][indexer_.GetIndex(
+					particle)];
+        }
+        
+        
+        
+        
+	/*for (int i = 0; i < particles.size(); i++) {
 		State* particle = particles[i];
 		bound +=
 			particle->weight
 				* bounds_[particle->scenario_id][streams.position()][indexer_.GetIndex(
 					particle)];
-	}
+	}*/
         if(observation_particle_size > 0)
         {
             bound = bound*observation_particle_size*1.0/Globals::config.num_scenarios;
@@ -180,7 +217,7 @@ double MDPUpperBound::Value(const Belief* belief, int observation_particle_size)
 	double value = 0;
 	for (int i = 0; i < particles.size(); i++) {
 		State* particle = particles[i];
-		value += particle->weight * policy_[indexer_.GetIndex(particle)].value;
+		value += particle->Weight() * policy_[indexer_.GetIndex(particle)].value;
 	}
 	return value;
 }

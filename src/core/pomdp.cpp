@@ -39,7 +39,39 @@ double State::Weight(const vector<State*>& particles) {
 	for (int i = 0; i < particles.size(); i++)
 		weight += particles[i]->weight;
 	return weight;
-}
+    }
+
+    double State::Weight(const ParticleNode* particle_node, const std::vector<double>& particle_weights, const std::vector<int>& obs_particle_ids, const int obs_particle_size) {
+        double weight = 0;
+        
+        vector<State*> particles;
+        ParticleNode::particles_vector(particle_node, obs_particle_ids, obs_particle_size, particles);
+        for(int i = 0; i < particles.size(); i++)
+        {
+            weight += particles[i]->Weight(particle_weights);
+        }
+        
+        /*if(obs_particle_size > 0)
+        {
+            for (map<int, State*>::const_iterator it = particle_node->particles_.begin();
+                    it != particle_node->particles_.end(); it++)
+            {
+                weight += it->second->Weight(particle_weights);
+            }
+        }
+        else
+        {
+         for(int i = 0; i < obs_particle_ids.size(); i++)
+            {
+                
+             weight += particle_node->particle(obs_particle_ids[i])->Weight(particle_weights);
+             
+            }   
+        }*/
+        //std::cout << "Returning weight " << weight << std::endl;
+        return weight;
+    }
+
 /* =============================================================================
  * StateIndexer class
  * =============================================================================*/

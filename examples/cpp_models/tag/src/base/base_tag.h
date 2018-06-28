@@ -48,7 +48,7 @@ protected:
         
         //Used for danger tag only
         //==========================
-        static double DANGER_PENALTY ;
+        
         
         std::vector< std::vector<bool> > dangers;
 	std::vector<int> rob_start_positions; // possible positions where robot may start
@@ -67,10 +67,13 @@ protected:
 
 	void ReadConfig(std::istream& is);
 	virtual void Init(std::istream& is);
-	Coord MostLikelyOpponentPosition(const std::vector<State*>& particles) const;
-	Coord MostLikelyRobPosition(const std::vector<State*>& particles) const;
-	const TagState& MostLikelyState(const std::vector<State*>& particles) const;
-	const State* GetMMAP(const std::vector<State*>& particles) const;
+	Coord MostLikelyOpponentPosition(ParticleNode* particle_node, std::vector<double>& particle_weights, std::vector<int>& obs_particle_ids, int observation_particle_size) const;
+	Coord MostLikelyRobPosition(ParticleNode* particle_node, std::vector< double>& particle_weights, std::vector<int>& obs_particle_ids, int observation_particle_size) const;
+	const TagState& MostLikelyState(ParticleNode* particle_node, std::vector<double>& particle_weights, std::vector<int>& obs_particle_ids, int observation_particle_size) const;
+	//const State* GetMMAP(const std::vector<State*>& particles) const;
+
+        const State* GetMMAP(ParticleNode* particle_node, std::vector<double>& particle_weights, std::vector<int>& obs_particle_ids, int observation_particle_size) const;
+
 	void PrintTransitions() const;
 
 protected:
@@ -87,6 +90,7 @@ public:
         static int ERRORS_PER_DIRECTION;
         static const int ERROR_MOVES[8][2];
         static double DEFAULT_MOVEMENT_ERROR;
+        static double DANGER_PENALTY ;
         
 	BaseTag();
 	BaseTag(std::string params_file);

@@ -159,7 +159,9 @@ public:
 				double prob = model_->ObsProb(obs, *copy, action);
 
 				if (!terminal && prob) { // Terminal state is not required to be explicitly represented and may not have any observation
-					copy->weight *= prob;
+                                    double copy_weight = copy->Weight();
+					copy_weight *= prob;
+                                        copy->Weight(copy_weight);
 					updated.push_back(copy);
 				} else {
 					model_->Free(copy);
@@ -191,7 +193,10 @@ public:
 						prob = 1E-6;
 
 					if (!terminal && prob) {
-						copy->weight *= prob;
+                                            double copy_weight = copy->Weight();
+					copy_weight *= prob;
+                                        copy->Weight(copy_weight);
+						
 						updated.push_back(copy);
 					} else {
 						model_->Free(copy);
@@ -217,8 +222,10 @@ public:
 		double weight_square_sum = 0;
 		for (int i = 0; i < particles_.size(); i++) {
 			State* particle = particles_[i];
-			particle->weight /= total_weight;
-			weight_square_sum += particle->weight * particle->weight;
+                        double particle_weight = particle->Weight();
+			particle_weight /= total_weight;
+                        particle->Weight(particle_weight);
+			weight_square_sum += particle_weight * particle_weight;
 		}
 
 		// Resample if the effective number of particles is "small"
@@ -243,7 +250,7 @@ vector<State*> POMDPX::ExactInitialParticleSet() const {
 	for (int s = 0; s < NumStates(); s++) {
 		POMDPXState* state = static_cast<POMDPXState*>(Allocate(s,
 			parser_->InitialWeight(states_[s]->vec_id)));
-		if (state->weight == 0) {
+		if (state->Weight() == 0) {
 			Free(state);
 		} else {
 			state->vec_id = states_[s]->vec_id;
@@ -339,7 +346,7 @@ void POMDPX::PrintTransitions() {
 			cout << "Action " << a << " -> " << endl;
 			for (int i = 0; i < transition_probabilities_[s][a].size(); i++) {
 				const State& state = transition_probabilities_[s][a][i];
-				cout << "w = " << state.weight << endl;
+				cout << "w = " << state.Weight() << endl;
 				PrintState(*states_[state.state_id]);
 			}
 			cout << endl;
@@ -359,7 +366,7 @@ void POMDPX::InitRewards() {
 			const vector<State>& transition = TransitionProbability(s, a);
 			for (int i = 0; i< transition.size(); i++) {
 				const State& next = transition[i];
-				rewards_[s][a] += next.weight
+				rewards_[s][a] += next.Weight()
 					* parser_->GetReward(states_[s]->vec_id,
 						states_[next.state_id]->vec_id, a);
 			}
@@ -420,16 +427,48 @@ public:
 		pomdpx_model_(static_cast<const POMDPX*>(model)) {
 	}
 
-	int Action(const vector<State*>& particles, RandomStreams& streams,
-		History& history) const {
+	int Action(ParticleNode* particle_node, std::vector<double>& particle_weights, std::vector<int> & obs_particle_ids, RandomStreams& streams,
+		History& history, int observation_particle_size) const {
 		int bestAction = 0;
 		double maxReward = Globals::NEG_INFTY;
 		for (int action = 0; action < pomdpx_model_->NumActions(); action++) {
 			double reward = 0;
-			for (int i = 0; i < particles.size(); i++) {
+			std::vector<State*> particles;
+                        ParticleNode::particles_vector(particle_node, obs_particle_ids, observation_particle_size, particles);
+        
+                        /*if(observation_particle_size > 0)
+                        {
+
+                            for (map<int, State*>::iterator it = particle_node->particles_.begin();
+                                    it != particle_node->particles_.end(); it++)
+                            {
+                                State* particle = it->second;
+                                double particle_weight =particle_weights.at(it->first);
+                                POMDPXState* state = static_cast<POMDPXState*>(particle);
+				reward += particle_weight
+					* pomdpx_model_->parser_->GetReward(state->vec_id,
+						state->vec_id, action);
+                            }
+                        }
+                        else
+                        {
+                         for(int i = 0; i < obs_particle_ids.size(); i++)
+                            {
+                             int ii = obs_particle_ids[i];
+                             State* particle = particle_node->particle(ii);
+                             double particle_weight = particle->Weight(particle_weights);
+                                
+                                POMDPXState* state = static_cast<POMDPXState*>(particle);
+				reward += particle_weight
+					* pomdpx_model_->parser_->GetReward(state->vec_id,
+						state->vec_id, action);
+                            }   
+
+                        }*/
+                        for (int i = 0; i < particles.size(); i++) {
 				State* particle = particles[i];
 				POMDPXState* state = static_cast<POMDPXState*>(particle);
-				reward += state->weight
+				reward += state->Weight(particle_weights)
 					* pomdpx_model_->parser_->GetReward(state->vec_id,
 						state->vec_id, action);
 			}
@@ -537,7 +576,7 @@ void POMDPX::PrintAction(int action, ostream& out) const {
 State* POMDPX::Allocate(int state_id, double weight) const {
 	POMDPXState* particle = memory_pool_.Allocate();
 	particle->state_id = state_id;
-	particle->weight = weight;
+	particle->Weight(weight);
 	return particle;
 }
 

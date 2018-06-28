@@ -5,12 +5,15 @@ using namespace std;
 
 namespace despot {
 
+    int DESPOT::NumActions;
+
 DESPOT::DESPOT(const DSPOMDP* model, ScenarioLowerBound* lb, ScenarioUpperBound* ub, Belief* belief) :
 	Solver(model, belief),
 	root_(NULL), 
 	lower_bound_(lb),
 	upper_bound_(ub) {
 	assert(model != NULL);
+        NumActions = model->NumActions();
 }
 
 DESPOT::~DESPOT() {
@@ -67,13 +70,18 @@ VNode* DESPOT::Trial(VNode* root, RandomStreams& streams,
 			double start = clock();
 			Expand(cur, lower_bound, upper_bound, model, streams, history,
                                 learned_lower_bound, statistics, o_helper);
-                        //root->PrintTree();
+                        if(logging::level() >= logging::DEBUG)
+                        {root->PrintTree();}
 			if (statistics != NULL) {
 				statistics->time_node_expansion += (double) (clock() - start)
 					/ CLOCKS_PER_SEC;
+                                //std::cout<< "Time per expansion" << (double) (clock() - start)
+				//	/ CLOCKS_PER_SEC << std::endl;
 				statistics->num_expanded_nodes++;
-				statistics->num_tree_particles += cur->particles().size();
+				statistics->num_tree_particles += cur->particles_size();
+                                
 			}
+                        
 		}
 
 		double start = clock();
@@ -192,15 +200,17 @@ VNode* DESPOT::ConstructTree(vector<State*>& particles, RandomStreams& streams,
                 //VNode* cur = Trial(root, streams, lower_bound, upper_bound, model, 
                 //        history, statistics);
 		used_time += double(clock() - start) / CLOCKS_PER_SEC;
-
+                //std::cout<<"Time per trial " << double(clock() - start) / CLOCKS_PER_SEC << std::endl;
 		start = clock();
 		Backup(cur,o_helper);
+                //std::cout << "After backing up ################################" << std::endl;
                 //root->PrintTree();
 		if (statistics != NULL) {
 			statistics->time_backup += double(clock() - start) / CLOCKS_PER_SEC;
 		}
 		used_time += double(clock() - start) / CLOCKS_PER_SEC;
-
+                
+                //std::cout<<"Time per backup " << double(clock() - start) / CLOCKS_PER_SEC << std::endl;
 		num_trials++;
                 
                 if(o_helper!=NULL)
@@ -260,7 +270,7 @@ void DESPOT::InitLowerBound(VNode* vnode, ScenarioLowerBound* lower_bound,
             obs_particle_size = o_helper->GetObservationParticleSize(vnode);
         }
         
-	ValuedAction move = lower_bound->Value(vnode->particles(), streams, history, obs_particle_size);
+	ValuedAction move = lower_bound->Value(vnode->particle_node_,vnode->particle_weight_,vnode->obs_particle_id_, streams, history, obs_particle_size);
 	move.value *= Globals::Discount(vnode->depth());
 	vnode->default_move(move);
 	vnode->lower_bound(move.value);
@@ -275,7 +285,7 @@ void DESPOT::InitUpperBound(VNode* vnode, ScenarioUpperBound* upper_bound,
         {
             obs_particle_size = o_helper->GetObservationParticleSize(vnode);
         }
-	double upper = upper_bound->Value(vnode->particles(), streams, history, obs_particle_size);
+	double upper = upper_bound->Value(vnode->particle_node_,vnode->particle_weight_,vnode->obs_particle_id_, streams, history, obs_particle_size);
 	vnode->utility_upper_bound = upper * Globals::Discount(vnode->depth());
 	upper = upper * Globals::Discount(vnode->depth()) - Globals::config.pruning_constant;
 	vnode->upper_bound(upper);
@@ -343,6 +353,7 @@ ValuedAction DESPOT::Search() {
 
 	ValuedAction astar = OptimalAction(root_);
 	start = get_time_second();
+        delete root_->particle_node_;
 	delete root_;
 
 	logi << "[DESPOT::Search] Time for deleting tree: "
@@ -358,11 +369,20 @@ double DESPOT::CheckDESPOT(const VNode* vnode, double regularized_value) {
 		<< "--------------------------------------------------------------------------------"
 		<< endl;
 
-	const vector<State*>& particles = vnode->particles();
-	vector<State*> copy;
+	//const vector<State*>& particles = vnode->particles();
+	vector<State*> particles;
+        vector<State*> copy;
+        ParticleNode::particles_vector(vnode->particle_node_, vnode->obs_particle_id_, vnode->observation_particle_size, particles, true);
 	for (int i = 0; i < particles.size(); i ++) {
-		copy.push_back(model_->Copy(particles[i]));
-	}
+            copy.push_back(model_->Copy(particles[i]));
+            copy.back()->Weight(particles[i]->Weight(vnode->particle_weight_));
+        }
+            
+        /*for (map<int, double>::const_iterator it = vnode->particle_weight_.begin();
+                    it != vnode->particle_weight_.end(); it++){
+		copy.push_back(model_->Copy(vnode->particle_node_->particle(it->first)));
+                copy.back()->Weight (it->second);
+	}*/
 	VNode* root = new VNode(copy);
 
 	double pruning_constant = Globals::config.pruning_constant;
@@ -428,11 +448,19 @@ double DESPOT::CheckDESPOTSTAR(const VNode* vnode, double regularized_value) {
 		<< "--------------------------------------------------------------------------------"
 		<< endl;
 
-	const vector<State*>& particles = vnode->particles();
+	//const vector<State*>& particles = vnode->particles();
+        vector<State*> particles;
 	vector<State*> copy;
+        ParticleNode::particles_vector(vnode->particle_node_, vnode->obs_particle_id_, vnode->observation_particle_size, particles, true);
 	for (int i = 0; i < particles.size(); i++) {
 		copy.push_back(model_->Copy(particles[i]));
+                copy.back()->Weight(particles[i]->Weight(vnode->particle_weight_));
 	}
+        /*for (map<int, double>::const_iterator it = vnode->particle_weight_.begin();
+                    it != vnode->particle_weight_.end(); it++){
+		copy.push_back(model_->Copy(vnode->particle_node_->particle(it->first)));
+                copy.back()->Weight(it->second);
+	}*/
 	VNode* root = new VNode(copy);
 
 	RandomStreams streams = RandomStreams(Globals::config.num_scenarios,
@@ -726,7 +754,7 @@ void DESPOT::Expand(VNode* vnode,
         DespotStaticFunctionOverrideHelper* o_helper) {
 	vector<QNode*>& children = vnode->children();
 	logd << "- Expanding vnode " << vnode << " Depth:" << vnode->depth() << " with (" 
-                << vnode->particles().size() << "," << vnode->observation_particle_size 
+                << vnode->obs_particle_id_.size() << "," << vnode->observation_particle_size 
                 << ") particles" << endl;
 	for (int action = 0; action < model->NumActions(); action++) {
 		logd << " Action " << action << endl;
@@ -755,60 +783,230 @@ void DESPOT::Expand(QNode* qnode, ScenarioLowerBound* lb,
 	History& history,  ScenarioLowerBound* learned_lower_bound, 
         SearchStatistics* statistics, 
         DespotStaticFunctionOverrideHelper* o_helper) {
+   // double start = clock();
    // std::cout << "Expanding in despot" << std::endl;
 	VNode* parent = qnode->parent();
 	streams.position(parent->depth());
 	map<OBS_TYPE, VNode*>& children = qnode->children();
 
-	const vector<State*>& particles = parent->particles();
-
+	//const vector<State*>& particles = parent->particles();
+        const vector<int>& obs_particle_ids = parent->obs_particle_id_;
+        //std::cout << "Expanding in despot 1" << std::endl;
+        ParticleNode* particle_node_child = parent->particle_node_->Child(qnode->edge());
+        if(particle_node_child == NULL)
+                    {
+                        std::vector<State*> temp;
+                        particle_node_child = new ParticleNode(temp, parent->depth() + 1, parent->particle_node_, qnode->edge());
+                        parent->particle_node_->Child(qnode->edge(), particle_node_child);
+                    }
+        
+        //std::cout << "Expanding in despot 1" << std::endl;
 	double step_reward = 0;
 
 	// Partition particles by observation
-	map<OBS_TYPE, vector<State*> > partitions;
+	map<OBS_TYPE, vector<int> > partitions;
 	OBS_TYPE obs;
 	double reward;
         int  num_particles_pushed = 0;
-	for (int i = 0; i < particles.size(); i++) {
-		State* particle = particles[i];
+        //std::set<int> obs_particle_id_set;
+        //double start1 = clock();
+	for (int i = 0; i < obs_particle_ids.size(); i++) {
+         //   double start2 = clock();
+            int ii = obs_particle_ids[i];
+            /*if (parent->observation_particle_size > 0)
+            {
+                obs_particle_id_set.insert(ii);
+            }*/
+            
+           //std::cout << "Time for Set" << (double) (clock() - start2)/ CLOCKS_PER_SEC << std::endl;
+            
+		State* particle = parent->particle_node_->particle(ii);
+                
 		logd << " Original: " << *particle << endl;
 
-		State* copy = model->Copy(particle);
+		//State* copy = model->Copy(particle);
 
-		logd << " Before step: " << *copy << endl;
+		//logd << " Before step: " << *copy << endl;
 
-		bool terminal = model->Step(*copy, streams.Entry(copy->scenario_id),
-			qnode->edge(), reward, obs);
+		//bool terminal = model->Step(*copy, streams.Entry(copy->scenario_id),
+		//	qnode->edge(), reward, obs);
 
-		step_reward += reward * copy->weight;
-
-		logd << " After step: " << *copy << " " << (reward * copy->weight)
-			<< " " << reward << " " << copy->weight << endl;
+		
+                
+                
+                //std::cout << "TTime" << (double) (clock() - start2)/ CLOCKS_PER_SEC << std::endl;
+                    bool terminal;
+                    if(particle_node_child->particle(ii) == NULL )
+                    {
+                        //double start3 = clock();
+			State* copy = model->Copy(particle);
+			terminal = model->Step(*copy,
+				streams.Entry(ii), qnode->edge(), reward, obs);
+                   //std::cout << "Time for P Step" << (double) (clock() - start3)/ CLOCKS_PER_SEC << std::endl;
+                   //std::cout << "TTime" << (double) (clock() - start2)/ CLOCKS_PER_SEC << std::endl;
+                   
+                     // start3=clock();
+                        particle_node_child->Add(copy,obs,reward, terminal);
+                       // std::cout << "Time for Add" << (double) (clock() - start3)/ CLOCKS_PER_SEC << std::endl;
+                       // std::cout << "TTime" << (double) (clock() - start2)/ CLOCKS_PER_SEC << std::endl;
+                    }
+                    else
+                    {
+                        obs = particle_node_child->obs(ii);
+                        reward = particle_node_child->reward(ii);
+                        terminal = particle_node_child->terminal(ii);
+                        
+                    }
+                  //double start3=clock();
+                    double particle_weight = particle->Weight(parent->particle_weight_);
+                  //  std::cout << "Time for Weight" << (double) (clock() - start3)/ CLOCKS_PER_SEC << std::endl;
+                    
+                    //std::cout << "TTime" << (double) (clock() - start2)/ CLOCKS_PER_SEC << std::endl;
+                    step_reward += reward * particle_weight;
+                
+		logd << " After step: " << *particle_node_child->particle(ii) << " " << (reward * particle_weight)
+			<< " " << reward << " " << particle_weight << endl;
 
 		if (!terminal) {
-			partitions[obs].push_back(copy);
+			partitions[obs].push_back(ii);
                         num_particles_pushed++;
-		} else {
+		} /*else {
 			model->Free(copy);
-		}
+		}*/
+             //   std::cout << "Time per particle Step" << (double) (clock() - start2 )/ CLOCKS_PER_SEC << std::endl;
 	}
-	step_reward = Globals::Discount(parent->depth()) * step_reward
-		- Globals::config.pruning_constant;//pruning_constant is used for regularization
+        if(parent->observation_particle_size > 0)
+        {
+            std::vector<State*> particles;
+            ParticleNode::particles_vector(parent->particle_node_, parent->obs_particle_id_, parent->observation_particle_size, particles, false);
+            //int obst_particle_id_index = 0;
+            //for (map<int, State*>::iterator it = parent->particle_node_->particles_.begin();
+             //       it != parent->particle_node_->particles_.end(); it++){
+                      //if(it->first < obs_particle_ids[obst_particle_id_index])
+                for(int i = 0; i < particles.size(); i++)
+                      {
+                            State* particle = particles[i];
+                          //Not checking for particle_child_node_null as it would have been created in previou loop
+                          //if(!parent->particle_node_->terminal(particle->scenario_id))
+                          //{
+                            bool terminal;
+                            if(particle_node_child->particle(particle->scenario_id) == NULL )
+                            {
+                                State* copy = model->Copy(particle);
+                                terminal = model->Step(*copy,
+                                        streams.Entry(particle->scenario_id), qnode->edge(), reward, obs);
+                                particle_node_child->Add(copy,obs,reward, terminal);
+                            }
+                            else
+                            {
+                                obs = particle_node_child->obs(particle->scenario_id);
+                                reward = particle_node_child->reward(particle->scenario_id);
+                                terminal = particle_node_child->terminal(particle->scenario_id);
+
+                            }
+                            step_reward += reward * parent->particle_weight_[particle->scenario_id];
+                          //}
+                          
+                      }
+                      /*else
+                      {
+                          //Equality detected Assuming obs_particle ids are sorted
+                          obst_particle_id_index++;
+                      }*/
+                  //}
+        }
         
+        
+        
+        
+        
+        
+        
+        
+        
+        double node_factor = 1;
+        if(parent->observation_particle_size > 0)
+        {
+            node_factor = parent->observation_particle_size*1.0/Globals::config.num_scenarios;
+        }
+        
+	step_reward = Globals::Discount(parent->depth()) * step_reward * node_factor
+		- Globals::config.pruning_constant;//pruning_constant is used for regularization
+     //   std::cout << "Time for Step" << (double) (clock() - start1)/ CLOCKS_PER_SEC << std::endl;
 //        std::cout << "Step reward = " << step_reward << std::endl;
 	double lower_bound = step_reward;
 	double upper_bound = step_reward;
-
+        //start1=clock();
 	// Create new belief nodes
-	for (map<OBS_TYPE, vector<State*> >::iterator it = partitions.begin();
+        vector<State*> particles;
+        if(parent->observation_particle_size > 0 && partitions.size() > 0)
+        {
+                            ParticleNode::particles_vector(particle_node_child, parent->obs_particle_id_, parent->observation_particle_size, particles, true);
+        }
+	for (map<OBS_TYPE, vector<int> >::iterator it = partitions.begin();
 		it != partitions.end(); it++) {
 		OBS_TYPE obs = it->first;
 		logd << " Creating node for obs " << obs << endl;
-		VNode* vnode = new VNode(partitions[obs], parent->depth() + 1,
-			qnode, obs);
+                
+                int observation_particle_size_ = parent->observation_particle_size;
+                 std::vector<double> particle_weights_;
+                 if(parent->observation_particle_size > 0)
+                 {
+                     //double startt = clock();
+                     particle_weights_.resize(Globals::config.num_scenarios, 0);
+                     //std::cout << "Time for weight creation" << (double) (clock() - startt)/ CLOCKS_PER_SEC << std::endl;
+                    observation_particle_size_ = partitions[obs].size();
+                            
+                    double total_weight = 0;
+                    
+                    //for (map<int, State*>::iterator itt = particle_node_child->particles_.begin();
+            //itt != particle_node_child->particles_.end(); itt++)
+                    //for(int i = 0; i < partitions[obs].size();i++)
+                            for(int i = 0; i < particles.size(); i++)
+                    {
+                        //if(!particle_node_child->terminal(itt->first))
+                        //{
+                               // startt=clock();
+                                
+                            double prob = particle_node_child->obs_prob(particles[i]->scenario_id, obs);
+                            //model_->PrintObs(*partitions[obs][i], obs);
+                            //if(prob < 0)
+                            {
+                                prob = model->ObsProb(obs, *(particles[i]), qnode->edge());
+                                
+                              particle_node_child->AddObsProb(particles[i]->scenario_id, obs, prob);
+                            }
+                            //std::cout << "Time for obs addition" << (double) (clock() - startt)/ CLOCKS_PER_SEC << std::endl;
+
+                        //std::cout << "Obs Prob:" <<  prob << " " << *partitions[obs][i] << std::endl;
+
+                         // Terminal state is not required to be explicitly represented and may not have any observation
+                        //partitions_weight[obs][i] *= prob;
+                        //total_weight += partitions_weight[obs][i];
+                        particle_weights_[particles[i]->scenario_id] = particles[i]->Weight(parent->particle_weight_) *prob;
+                        total_weight += particle_weights_[particles[i]->scenario_id];
+                        //}
+                        //else
+                        //{
+                         //   particle_weights_[itt->first] = 0;
+                       // }
+                //Total weight should not be zero as one particle actually produced that observation
+                    }
+                    for(int i = 0; i < particle_weights_.size();i++)
+                    {
+                        //partitions_weight[obs][i]= partitions_weight[obs][i]/total_weight;
+                        particle_weights_[i] = particle_weights_[i]/total_weight;
+                    }
+                 }
+                
+                
+		VNode* vnode = new VNode(particle_node_child, it->second, particle_weights_, observation_particle_size_, parent->depth() + 1, qnode, obs);
+                
+                
 		logd << " New node created!" << endl;
 		children[obs] = vnode;
-
+                
+                
 		history.Add(qnode->edge(), obs);
 		InitBounds(vnode, lb, ub, streams, history, learned_lower_bound, statistics, o_helper);
 		history.RemoveLast();
@@ -825,6 +1023,8 @@ void DESPOT::Expand(QNode* qnode, ScenarioLowerBound* lb,
 	qnode->utility_upper_bound = upper_bound + Globals::config.pruning_constant;
 
 	qnode->default_value = lower_bound; // for debugging
+        //std::cout << "Time for Observation" << (double) (clock() - start1)/ CLOCKS_PER_SEC << std::endl;
+       // std::cout << "Time for Qnode expansion" << (double) (clock() - start)/ CLOCKS_PER_SEC << std::endl;
 }
 
 ValuedAction DESPOT::Evaluate(VNode* root, vector<State*>& particles,
@@ -912,7 +1112,7 @@ void DESPOT::Update(int action, OBS_TYPE obs) {
         statistics_ = new SearchStatistics();
     }
     
-    void DESPOT::CoreSearch(std::vector<State*> particles, RandomStreams& streams) {
+    void DESPOT::CoreSearch(std::vector<State*>& particles, RandomStreams& streams) {
         
 	root_ = ConstructTree(particles, streams, lower_bound_, upper_bound_,
 		model_, history_, Globals::config.time_per_move, statistics_);

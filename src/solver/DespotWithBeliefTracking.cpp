@@ -20,7 +20,7 @@ DespotWithBeliefTracking::DespotWithBeliefTracking(const DSPOMDP* model,
     o_helper_->solver_pointer = this;
 }
 
-void DespotStaticFunctionOverrideHelperForBeliefTracking::Expand(QNode* qnode, ScenarioLowerBound* lb,
+/*void DespotStaticFunctionOverrideHelperForBeliefTracking::Expand(QNode* qnode, ScenarioLowerBound* lb,
 	ScenarioUpperBound* ub, const DSPOMDP* model,
 	RandomStreams& streams,
 	History& history,  ScenarioLowerBound* learned_lower_bound, 
@@ -164,7 +164,7 @@ void DespotStaticFunctionOverrideHelperForBeliefTracking::Expand(QNode* qnode, S
 
 	qnode->default_value = lower_bound; // for debugging
 }
-
+*/
 /*
 void DespotStaticFunctionOverrideHelperForBeliefTracking::Update(QNode* qnode)
 {
@@ -206,7 +206,7 @@ int DespotStaticFunctionOverrideHelperForBeliefTracking::GetObservationParticleS
     {
         if(vnode->observation_particle_size == -1)
         {
-            return vnode->particles().size();
+            return vnode->particle_node_->particles_size();
         }
         else
         {
@@ -214,7 +214,7 @@ int DespotStaticFunctionOverrideHelperForBeliefTracking::GetObservationParticleS
         }
     }
 
-void DespotWithBeliefTracking::CoreSearch(std::vector<State*> particles, RandomStreams& streams) {
+void DespotWithBeliefTracking::CoreSearch(std::vector<State*>& particles, RandomStreams& streams) {
     //std::cout << "Initiallizing contruct tree with learned policy solver ##################" << std::endl;
     //DESPOT::CoreSearch(particles, streams);
 

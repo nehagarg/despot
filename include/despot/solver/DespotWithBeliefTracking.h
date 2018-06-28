@@ -22,14 +22,14 @@ public:
 
 
    
-    void Expand(QNode* qnode, 
+    /*void Expand(QNode* qnode, 
             ScenarioLowerBound* lower_bound, 
             ScenarioUpperBound* upper_bound, 
             const DSPOMDP* model, RandomStreams& streams, 
             History& history, ScenarioLowerBound* learned_lower_bound, 
             SearchStatistics* statistics, 
             DespotStaticFunctionOverrideHelper* o_helper);
-
+     */ 
     //void Update(QNode* qnode);
     int GetObservationParticleSize(VNode* vnode);
 
@@ -44,7 +44,7 @@ public:
 
     virtual ~DespotWithBeliefTracking(){};
     
-    void CoreSearch(std::vector<State*> particles, RandomStreams& streams);
+    void CoreSearch(std::vector<State*>& particles, RandomStreams& streams);
 
 private:
 

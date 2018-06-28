@@ -76,8 +76,11 @@ public:
 		floor_ = tag_model_->floor();
 	}
 
-	int Action(const vector<State*>& particles, RandomStreams& streams,
-		History& history) const {
+
+        int Action(ParticleNode* particle_node, std::vector< double>& particle_weights, std::vector<int>& obs_particle_ids, RandomStreams& streams, History& history, int observation_particle_size) const {
+
+	//int Action(const vector<State*>& particles, RandomStreams& streams,
+	//	History& history) const {
 		// If history is empty then take a random move
 		if (history.Size() == 0) {
 			return Random::RANDOM.NextInt(tag_model_->NumActions() - 1);
@@ -92,7 +95,7 @@ public:
 		// Compute rob position
 		Coord rob;
 		if (tag_model_->same_loc_obs_ != floor_.NumCells()) {
-			rob = tag_model_->MostLikelyRobPosition(particles);
+			rob = tag_model_->MostLikelyRobPosition(particle_node, particle_weights,obs_particle_ids,observation_particle_size);
 		} else {
 			rob = floor_.GetCell(history.LastObservation());
 		}
@@ -152,12 +155,12 @@ public:
 		for (int i = 0; particles.size(); i++) {
 			State* particle = particles[i];
 			int id = particle->state_id;
-			state_probs_[id] += particle->weight;
+			state_probs_[id] += particle->Weight();
 
 			if (state_probs_[id] > maxWeight) {
 				maxWeight = state_probs_[id];
 				mode = *particle;
-				mode.weight = maxWeight;
+				mode.Weight(maxWeight);
 			}
 		}
 
@@ -173,7 +176,7 @@ public:
 		for (int i = 0; i < particles.size(); i++) {
 			State* particle = particles[i];
 			int id = particle->state_id;
-			state_probs_[id] += particle->weight;
+			state_probs_[id] += particle->Weight();
 		}
 
 		vector<State*> copy;
@@ -194,7 +197,7 @@ public:
 		int rob = tag_model_->StateIndexToRobIndex(mode.state_id);
 		int opp = tag_model_->StateIndexToOppIndex(mode.state_id);
 		if (rob == opp)
-		first_action_ = (mode.weight > 0.99) ? tag_model_->TagAction() : 0;
+		first_action_ = (mode.Weight() > 0.99) ? tag_model_->TagAction() : 0;
 		else {
 			vector<int> policy = floor_.ComputeShortestPath(rob, opp);
 
@@ -204,11 +207,15 @@ public:
 		paths_.clear();
 	}
 
-	int Action(const vector<State*>& particles,
-		RandomStreams& streams, History& history) const {
+
+        int Action(ParticleNode* particle_node, std::vector< double>& particle_weights, std::vector<int>& obs_particle_ids, RandomStreams& streams, History& history, int observation_particle_size) const {
+
+//	int Action(const vector<State*>& particles,
+//		RandomStreams& streams, History& history) const {
 		if (streams.position() == 0)
 		return first_action_;
 
+                
 		if (streams.position() == 1) {
 			int action = history.LastAction();
 			OBS_TYPE obs = history.LastObservation();
@@ -240,7 +247,7 @@ public:
 		// Compute rob position
 		Coord rob;
 		if (tag_model_->same_loc_obs_ != floor_.NumCells()) {
-			rob = tag_model_->MostLikelyRobPosition(particles);
+			rob = tag_model_->MostLikelyRobPosition(particle_node, particle_weights,obs_particle_ids,observation_particle_size);
 		} else {
 			rob = floor_.GetCell(history.LastObservation());
 		}
@@ -345,7 +352,7 @@ public:
 		for (int i = 0; i < particles.size(); i++) {
 			State* particle = particles[i];
 			const TagState* state = static_cast<const TagState*>(particle);
-			value += state->weight * value_[state->state_id];
+			value += state->Weight() * value_[state->state_id];
 		}
 		return value;
 	}
@@ -540,10 +547,10 @@ void BaseTag::Init(istream& is) {
 					
                                         // No "error" for Tag action
 					if (movement_error > Globals::TINY && a != TagAction()) {
-						next.weight = it->second * (1.0 - movement_error);
+						next.Weight(it->second * (1.0 - movement_error));
 						transition_probabilities_[s][a].push_back(next);
 					} else {
-						next.weight = it->second;
+						next.Weight(it->second);
 						transition_probabilities_[s][a].push_back(next);
 						continue;
 					}
@@ -556,7 +563,7 @@ void BaseTag::Init(istream& is) {
 					for (int i = 0; i < ERRORS_PER_DIRECTION; i++) {
 						State errState;
 						Coord errDirection = Compass::DIRECTIONS[ERROR_MOVES[a][i]];
-						errState.weight = movement_error * it->second * (1.0 / ERRORS_PER_DIRECTION);
+						errState.Weight(movement_error * it->second * (1.0 / ERRORS_PER_DIRECTION));
 
 						if (floor_.Inside(floor_.GetCell(rob_[s]) + errDirection)) {
 							errState.state_id = RobOppIndicesToStateIndex(floor_.GetIndex(floor_.GetCell(rob_[s]) + errDirection), it->first);
@@ -583,7 +590,7 @@ bool BaseTag::Step(State& s, double random_num, int action,
 	double sum = 0;
 	for (int i = 0; i < distribution.size(); i++) {
 		const State& next = distribution[i];
-		sum += next.weight;
+		sum += next.Weight();
 		if (sum >= random_num) {
 			state.state_id = next.state_id;
 			break;
@@ -690,7 +697,7 @@ void BaseTag::PrintTransitions() const {
 				i++) {
 				const State& next = transition_probabilities_[s][a][i];
 				cout << s << "-" << a << "-" << next.state_id << "-"
-					<< next.weight << endl;
+					<< next.Weight() << endl;
 				PrintState(*GetState(next.state_id));
 			}
 		}
@@ -874,7 +881,7 @@ void BaseTag::PrintAction(int action, ostream& out) const {
 State* BaseTag::Allocate(int state_id, double weight) const {
 	TagState* state = memory_pool_.Allocate();
 	state->state_id = state_id;
-	state->weight = weight;
+	state->Weight( weight);
 	return state;
 }
 
@@ -930,15 +937,20 @@ void BaseTag::ComputeDefaultActions(string type) const {
 
 int BaseTag::GetAction(const State& state) const {
 	return default_action_[GetIndex(&state)];
-}
+    }
 
-Coord BaseTag::MostLikelyOpponentPosition(
-	const vector<State*>& particles) const {
+    Coord BaseTag::MostLikelyOpponentPosition(ParticleNode* particle_node, std::vector<double>& particle_weights, std::vector<int>& obs_particle_ids, int observation_particle_size) const {
+
+    
+
+//Coord BaseTag::MostLikelyOpponentPosition(
+//	const vector<State*>& particles) const {
 	static vector<double> probs = vector<double>(floor_.NumCells());
-
+        vector <State*> particles;
+        ParticleNode::particles_vector(particle_node, obs_particle_ids, observation_particle_size, particles);
 	for (int i = 0; i < particles.size(); i++) {
 		TagState* tagstate = static_cast<TagState*>(particles[i]);
-		probs[opp_[tagstate->state_id]] += tagstate->weight;
+		probs[opp_[tagstate->state_id]] += tagstate->Weight(particle_weights);
 	}
 
 	double maxWeight = 0;
@@ -952,17 +964,23 @@ Coord BaseTag::MostLikelyOpponentPosition(
 	}
 
 	return floor_.GetCell(opp);
-}
+    }
 
-Coord BaseTag::MostLikelyRobPosition(const vector<State*>& particles) const {
+    Coord BaseTag::MostLikelyRobPosition(ParticleNode* particle_node, std::vector<double>& particle_weights, std::vector<int>& obs_particle_ids, int observation_particle_size) const {
+
+    
+
+//Coord BaseTag::MostLikelyRobPosition(const vector<State*>& particles) const {
 	static vector<double> probs = vector<double>(floor_.NumCells());
 
 	double maxWeight = 0;
 	int rob = -1;
+        vector <State*> particles;
+        ParticleNode::particles_vector(particle_node, obs_particle_ids, observation_particle_size, particles);
 	for (int i = 0; i < particles.size(); i++) {
 		TagState* tagstate = static_cast<TagState*>(particles[i]);
 		int id = rob_[tagstate->state_id];
-		probs[id] += tagstate->weight;
+		probs[id] += tagstate->Weight(particle_weights);
 
 		if (probs[id] > maxWeight) {
 			maxWeight = probs[id];
@@ -975,18 +993,22 @@ Coord BaseTag::MostLikelyRobPosition(const vector<State*>& particles) const {
 	}
 
 	return floor_.GetCell(rob);
-}
+    }
 
-const TagState& BaseTag::MostLikelyState(
-	const vector<State*>& particles) const {
+    const TagState& BaseTag::MostLikelyState(ParticleNode* particle_node, std::vector<double>& particle_weights, std::vector<int>& obs_particle_ids, int observation_particle_size) const {
+
+//const TagState& BaseTag::MostLikelyState(
+//	const vector<State*>& particles) const {
 	static vector<double> probs = vector<double>(NumStates());
 
 	double maxWeight = 0;
 	int bestId = -1;
+        vector <State*> particles;
+        ParticleNode::particles_vector(particle_node, obs_particle_ids, observation_particle_size, particles);
 	for (int i = 0; i < particles.size(); i++) {
 		TagState* tagstate = static_cast<TagState*>(particles[i]);
 		int id = GetIndex(tagstate);
-		probs[id] += tagstate->weight;
+		probs[id] += tagstate->Weight(particle_weights);
 
 		if (probs[id] > maxWeight) {
 			maxWeight = probs[id];
@@ -1000,11 +1022,15 @@ const TagState& BaseTag::MostLikelyState(
 	}
 
 	return *states_[bestId];
-}
+    }
 
-const State* BaseTag::GetMMAP(const vector<State*>& particles) const {
-	Coord rob = MostLikelyRobPosition(particles);
-	Coord opp = MostLikelyOpponentPosition(particles);
+    const State* BaseTag::GetMMAP(ParticleNode* particle_node, std::vector< double>& particle_weights, std::vector<int>& obs_particle_ids, int observation_particle_size) const {
+
+    
+    
+//const State* BaseTag::GetMMAP(const vector<State*>& particles) const {
+	Coord rob = MostLikelyRobPosition(particle_node,particle_weights,obs_particle_ids,observation_particle_size);
+	Coord opp = MostLikelyOpponentPosition(particle_node,particle_weights,obs_particle_ids,observation_particle_size);
 
 	int state_id = RobOppIndicesToStateIndex(floor_.GetIndex(rob),
 		floor_.GetIndex(opp));
@@ -1024,7 +1050,7 @@ Belief* BaseTag::Tau(const Belief* belief, int action, OBS_TYPE obs) const {
 			state)][action];
 		for (int j = 0; j < distribution.size(); j++) {
 			const State& next = distribution[j];
-			double p = state->weight * next.weight
+			double p = state->Weight() * next.Weight()
 				* ObsProb(obs, *(states_[next.state_id]), action);
 			probs[next.state_id] += p;
 			sum += p;
@@ -1035,7 +1061,7 @@ Belief* BaseTag::Tau(const Belief* belief, int action, OBS_TYPE obs) const {
 	for (int i = 0; i < NumStates(); i++) {
 		if (probs[i] > 0) {
 			State* new_particle = Copy(states_[i]);
-			new_particle->weight = probs[i] / sum;
+			new_particle->Weight(probs[i] / sum);
 			new_particles.push_back(new_particle);
 			probs[i] = 0;
 		}
@@ -1062,7 +1088,7 @@ double BaseTag::StepReward(const Belief* belief, int action) const {
 		} else {
 			reward = -1;
 		}
-		sum += state->weight * reward;
+		sum += state->Weight() * reward;
 	}
 
 	return sum;

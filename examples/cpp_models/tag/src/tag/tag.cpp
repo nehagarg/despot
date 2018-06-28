@@ -117,7 +117,7 @@ void Tag::Observe(const Belief* belief, int action,
 		for (int i = 0; i < distribution.size(); i++) {
 			const State& next = distribution[i];
 			OBS_TYPE obs = obs_[next.state_id];
-			double p = state->weight * next.weight;
+			double p = state->Weight() * next.Weight();
 			obss[obs] += p;
 		}
 	}

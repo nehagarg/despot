@@ -44,11 +44,12 @@ ValuedAction ScenarioLowerBound::Search() {
 	RandomStreams streams(Globals::config.num_scenarios,
 		Globals::config.search_depth);
 	vector<State*> particles = belief_->Sample(Globals::config.num_scenarios);
-
-	ValuedAction va = Value(particles, streams, history_, particles.size());
+        VNode *vnode = new VNode(particles);
+	ValuedAction va = Value(vnode->particle_node_,vnode->particle_weight_,vnode->obs_particle_id_, streams, history_, vnode->observation_particle_size);
 
 	for (int i = 0; i < particles.size(); i++)
-		model_->Free(particles[i]);
+            vnode->Free(*model_);
+            //model_->Free(particles[i]);
 
 	return va;
 }
@@ -71,20 +72,21 @@ POMCPScenarioLowerBound::POMCPScenarioLowerBound(const DSPOMDP* model,
 		- model_->GetMinRewardAction().value;
 }
 
-ValuedAction POMCPScenarioLowerBound::Value(const vector<State*>& particles,
+ValuedAction POMCPScenarioLowerBound::Value(ParticleNode* particle_node, std::vector<double>& particle_weights,
+		std::vector<int> & obs_particle_ids, 
 	RandomStreams& streams, History& history, int observation_particle_size) const {
 	prior_->history(history);
-	VNode* root = POMCP::CreateVNode(0, particles[0], prior_, model_);
+	VNode* root = POMCP::CreateVNode(0, particle_node->particle(obs_particle_ids[0]), prior_, model_);
 	// Note that particles are assumed to be of equal weight
-	for (int i = 0; i < particles.size(); i++) {
-		State* particle = particles[i];
+	for (int i = 0; i < obs_particle_ids.size(); i++) {
+		const State* particle = particle_node->particle(obs_particle_ids[i]);
 		State* copy = model_->Copy(particle);
 		POMCP::Simulate(copy, streams, root, model_, prior_);
 		model_->Free(copy);
 	}
 
 	ValuedAction va = POMCP::OptimalAction(root);
-	va.value *= State::Weight(particles);
+	va.value *= State::Weight(particle_node, particle_weights, obs_particle_ids, observation_particle_size);
 	delete root;
 	return va;
 }
@@ -97,9 +99,11 @@ ParticleLowerBound::ParticleLowerBound(const DSPOMDP* model, Belief* belief) :
 	ScenarioLowerBound(model, belief) {
 }
 
-ValuedAction ParticleLowerBound::Value(const vector<State*>& particles,
+ValuedAction ParticleLowerBound::Value(ParticleNode* particle_node, std::vector<double>& particle_weights,
+		std::vector<int> & obs_particle_ids, 
 	RandomStreams& streams, History& history, int observation_particle_size) const {
-	return Value(particles, observation_particle_size);
+	return Value(particle_node, particle_weights,
+		obs_particle_ids, observation_particle_size);
 }
 
 /* =============================================================================
@@ -111,9 +115,11 @@ TrivialParticleLowerBound::TrivialParticleLowerBound(const DSPOMDP* model) :
 }
 
 ValuedAction TrivialParticleLowerBound::Value(
-	const vector<State*>& particles,int observation_particle_size) const {
+ParticleNode* particle_node, std::vector<double>& particle_weights,
+		std::vector<int> & obs_particle_ids, 	
+int observation_particle_size) const {
 	ValuedAction va = model_->GetMinRewardAction();
-	va.value *= State::Weight(particles) / (1 - Globals::Discount());
+	va.value *= State::Weight(particle_node, particle_weights, obs_particle_ids, observation_particle_size) / (1 - Globals::Discount());
         if(observation_particle_size > 0)
         {
             va.value *= observation_particle_size*1.0/Globals::config.num_scenarios;

@@ -37,8 +37,11 @@ public:
 	}
 
 	// NOTE: optimal for noise = 0.15
-	int Action(const vector<State*>& particles, RandomStreams& streams,
-		History& history) const {
+
+        virtual int Action(ParticleNode* particle_node, std::vector<double>& particle_weights, std::vector<int>& obs_particle_ids, RandomStreams& streams, History& history, int observation_particle_size) const {
+
+//	int Action(const vector<State*>& particles, RandomStreams& streams,
+//		History& history) const {
 		/*
 		 if (history.Size() == 0 || history.LastAction() != LISTEN) {
 		 actions->push_back(LISTEN);
@@ -172,7 +175,7 @@ void Tiger::PrintAction(int action, ostream& out) const {
 State* Tiger::Allocate(int state_id, double weight) const {
 	TigerState* particle = memory_pool_.Allocate();
 	particle->state_id = state_id;
-	particle->weight = weight;
+	particle->Weight (weight);
 	return particle;
 }
 

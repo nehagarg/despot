@@ -45,7 +45,7 @@ void PocmanBelief::Update(int action, OBS_TYPE obs) {
 	particles_ = updated;
 
 	for (int i = 0; i < particles_.size(); i++)
-		particles_[i]->weight = 1.0 / particles_.size();
+		particles_[i]->Weight (1.0 / particles_.size());
 }
 
 /* ==============================================================================
@@ -79,11 +79,39 @@ public:
 		pocman_(model) {
 	}
 
-	double Value(const vector<State*>& particles,
-		RandomStreams& streams, History& history, int obs_particle_size) const {
+        
+        virtual double Value(ParticleNode* particle_node, std::vector<double>& particle_weights, std::vector<int>& obs_particle_ids, RandomStreams& streams, History& history, int observation_particle_size) const{
+ 
+	//double Value(const vector<State*>& particles,
+	//	RandomStreams& streams, History& history, int obs_particle_size) const {
 		double total_value = 0;
-		for (int i = 0; i < particles.size(); i++) {
+
+                vector<State*> particles;
+                ParticleNode::particles_vector(particle_node, obs_particle_ids, observation_particle_size, particles, true);
+                /*vector<State*> particles;
+                if(observation_particle_size > 0)
+                {
+                    for (map<int, State*>::iterator it = particle_node->particles_.begin();
+                    it != particle_node->particles_.end(); it++)
+                    {
+                        State* particle = it->second;
+                        particles.push_back(particle);
+                    }
+                }
+                else
+                {
+                    for(int i = 0; i < obs_particle_ids.size(); i++)
+                    {
+                     int ii = obs_particle_ids[i];
+                     State* particle = particle_node->particle(ii);
+                     particles.push_back(particle);
+                    } 
+                }*/
+                
+                for (int i = 0; i < particles.size(); i++) {
 			PocmanState& state = static_cast<PocmanState&>(*(particles[i]));
+                        double state_weight = state.Weight(particle_weights);
+                        
 			double value = 0;
 
 			int max_dist = 0;
@@ -136,11 +164,11 @@ public:
 					== history.Action(history.Size() - 2))
 				value += pocman_->reward_hit_wall_ / 2;
 
-			total_value += state.weight * value;
+			total_value += state_weight * value;
 		}
-                if(obs_particle_size > 0)
+                if(observation_particle_size > 0)
                 {
-                    total_value = total_value*obs_particle_size*1.0/Globals::config.num_scenarios;
+                    total_value = total_value*observation_particle_size*1.0/Globals::config.num_scenarios;
                 }
 		return total_value;
 	}
@@ -159,21 +187,24 @@ public:
 		pocman_(static_cast<const Pocman*>(model)) {
 	}
 
-	ValuedAction Value(const vector<State*>& particles, int obs_particle_size) const {
+
+        virtual ValuedAction Value(ParticleNode* particle_node, std::vector< double>& particle_weights, std::vector<int>& obs_particle_ids, int observation_particle_size) const {
+
+	//ValuedAction Value(const vector<State*>& particles, int obs_particle_size) const {
 		const PocmanState& pocstate =
-			static_cast<const PocmanState&>(*particles[0]);
+			static_cast<const PocmanState&>(*particle_node->particle(obs_particle_ids[0]));
 		vector<int> legal;
 		for (int a = 0; a < 4; ++a) {
 			Coord newpos = pocman_->NextPos(pocstate.pocman_pos, a);
 			if (newpos.x >= 0 && newpos.y >= 0)
 				legal.push_back(a);
 		}
-                double a_value = State::Weight(particles)
+                double a_value = State::Weight(particle_node, particle_weights, obs_particle_ids, observation_particle_size)
 				* (pocman_->reward_die_
 					+ pocman_->reward_default_ / (1 - Globals::Discount()));
-                if(obs_particle_size > 0)
+                if(observation_particle_size > 0)
                 {
-                    a_value = a_value*obs_particle_size*1.0/Globals::config.num_scenarios;
+                    a_value = a_value*observation_particle_size*1.0/Globals::config.num_scenarios;
                 }
 		return ValuedAction(legal[Random::RANDOM.NextInt(legal.size())],
 			a_value);
@@ -195,10 +226,13 @@ public:
 		pocman_(model) {
 	}
 
-	int Action(const vector<State*>& particles, RandomStreams& streams,
-		History& history) const {
+
+        int Action(ParticleNode* particle_node, std::vector<double>& particle_weights, std::vector<int>& obs_particle_ids, RandomStreams& streams, History& history, int observation_particle_size) const {
+
+	//int Action(const vector<State*>& particles, RandomStreams& streams,
+	//	History& history) const {
 		const PocmanState& pocstate =
-			static_cast<const PocmanState&>(*particles[0]);
+			static_cast<const PocmanState&>(*particle_node->particle(obs_particle_ids[0]));
 		preferred_.clear();
 		legal_.clear();
 
@@ -494,7 +528,7 @@ Belief* Pocman::InitialBelief(const State* start, string type) const {
 	vector<State*> particles(N);
 	for (int i = 0; i < N; i++) {
 		particles[i] = CreateStartState();
-		particles[i]->weight = 1.0 / N;
+		particles[i]->Weight(1.0 / N);
 	}
 
 	return new PocmanBelief(particles, this);
@@ -870,7 +904,7 @@ void Pocman::PrintAction(int action, ostream& out) const {
 State* Pocman::Allocate(int state_id, double weight) const {
 	PocmanState* state = memory_pool_.Allocate();
 	state->state_id = state_id;
-	state->weight = weight;
+	state->Weight(weight);
 	return state;
 }
 

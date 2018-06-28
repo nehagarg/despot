@@ -14,6 +14,8 @@
 
 namespace despot {
 
+    
+  
 /* =============================================================================
  * State class
  * =============================================================================*/
@@ -21,10 +23,12 @@ namespace despot {
  * Base state class.
  */
 class State: public MemoryObject {
+private:
+    double weight;
 public:
 	int state_id;
 	int scenario_id;
-	double weight;
+	
 
 	State();
 	State(int _state_id, double weight);
@@ -33,9 +37,29 @@ public:
 	friend std::ostream& operator<<(std::ostream& os, const State& state);
 
 	virtual std::string text() const;
+        double Weight(const std::vector<double>& particle_weights) const
+        {
+            double particle_weight = weight;
+                        if(particle_weights.size() > 0)
+                        {
+                            particle_weight = particle_weights[scenario_id];
+                        }
+            return particle_weight;
+        }
+        
+        double Weight() const
+        {
+            return weight;
+        }
+        void Weight(double weight_)
+        {
+            weight = weight_;
+        }
 
 	static double Weight(const std::vector<State*>& particles);
-
+        static double Weight(const ParticleNode* particle_node, const std::vector<double>& particle_weights,
+		const std::vector<int> & obs_particle_ids, const int obs_particle_size);
+        
 	State* operator()(int state_id, double weight) {
 		this->state_id = state_id;
 		this->weight = weight;
@@ -80,7 +104,7 @@ class MMAPInferencer {
 public:
 	virtual ~MMAPInferencer();
 
-	virtual const State* GetMMAP(const std::vector<State*>& particles) const = 0;
+	virtual const State* GetMMAP(ParticleNode* particle_node, std::vector<double>& particle_weights, std::vector<int> & obs_particle_ids, int observation_particle_size) const = 0;
 };
 
 class POMCPPrior;

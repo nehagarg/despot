@@ -136,7 +136,8 @@ public:
 	static ValuedAction Evaluate(VNode* root, std::vector<State*>& particles,
 		RandomStreams& streams, POMCPPrior* prior, const DSPOMDP* model);
         virtual void InitStatistics();
-        virtual void CoreSearch(std::vector<State*> particles, RandomStreams& streams );
+        virtual void CoreSearch(std::vector<State*>& particles, RandomStreams& streams );
+        static int NumActions;
 };
 
 } // namespace despot

@@ -11,6 +11,7 @@ namespace despot {
 class State;
 class DSPOMDP;
 class VNode;
+class ParticleNode;
 
 /* =============================================================================
  * ScenarioLowerBound class
@@ -48,7 +49,8 @@ public:
 	 * @return (a, v), where v is the lower bound and a is the first action needed
 	 * to obtain the lower bound.
 	 */
-	virtual ValuedAction Value(const std::vector<State*>& particles,
+	virtual ValuedAction Value(ParticleNode* particle_node, std::vector<double>& particle_weights,
+		std::vector<int> & obs_particle_ids, 
 		RandomStreams& streams, History& history, int observation_particle_size) const = 0;
         
        
@@ -76,7 +78,8 @@ public:
 	POMCPScenarioLowerBound(const DSPOMDP* model, POMCPPrior* prior,
 		Belief* belief = NULL);
 
-	ValuedAction Value(const std::vector<State*>& particles, RandomStreams& streams,
+	ValuedAction Value(ParticleNode* particle_node, std::vector<double>& particle_weights,
+		std::vector<int> & obs_particle_ids,  RandomStreams& streams,
 		History& history, int observation_particle_size) const;
 };
 
@@ -100,9 +103,11 @@ public:
 	 * inifnite. The first action that need to be followed to obtain the bound is
 	 * also returned.
 	 */
-	virtual ValuedAction Value(const std::vector<State*>& particles, int observation_particle_size) const = 0;
+	virtual ValuedAction Value( ParticleNode* particle_node, std::vector<double>& particle_weights,
+		std::vector<int> & obs_particle_ids, int observation_particle_size) const = 0;
 
-	ValuedAction Value(const std::vector<State*>& particles,
+	ValuedAction Value(ParticleNode* particle_node, std::vector<double>& particle_weights,
+		std::vector<int> & obs_particle_ids, 
 		RandomStreams& streams, History& history, int observation_particle_size) const;
 };
 
@@ -115,7 +120,8 @@ public:
 	TrivialParticleLowerBound(const DSPOMDP* model);
 
 public:
-	virtual ValuedAction Value(const std::vector<State*>& particles, int observation_particle_size) const;
+	virtual ValuedAction Value(ParticleNode* particle_node, std::vector<double>& particle_weights,
+		std::vector<int> & obs_particle_ids,  int observation_particle_size) const;
 };
 
 /* =============================================================================

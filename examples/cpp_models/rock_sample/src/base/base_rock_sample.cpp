@@ -389,11 +389,16 @@ public:
 		grid_(rs_model_->grid_) {
 	}
 
-	ValuedAction Value(const vector<State*>& particles, RandomStreams& streams,
-		History& history, int observation_particle_size = -1) const {
-		return ValuedAction(Compass::EAST,
-			10 * State::Weight(particles)
-				* Globals::Discount(grid_.xsize() - rs_model_->GetX(particles[0]) - 1));
+        ValuedAction Value(ParticleNode* particle_node, std::vector< double>& particle_weights, std::vector<int>& obs_particle_ids, RandomStreams& streams, History& history, int observation_particle_size) const
+        
+        {
+	//ValuedAction Value(const vector<State*>& particles, RandomStreams& streams,
+	//	History& history, int observation_particle_size = -1) const {
+
+        
+                return ValuedAction(Compass::EAST,
+			10 * State::Weight(particle_node, particle_weights, obs_particle_ids, observation_particle_size)
+				* Globals::Discount(grid_.xsize() - rs_model_->GetX(particle_node->particle(obs_particle_ids[0])) - 1));
 	}
 };
 
@@ -427,23 +432,51 @@ public:
 		}
 	}
 
-	ValuedAction Value(const vector<State*>& particles, RandomStreams& streams,
-		History& history, int observation_particle_size = -1) const {
+
+        ValuedAction Value(ParticleNode* particle_node, std::vector< double>& particle_weights, std::vector<int>& obs_particle_ids, RandomStreams& streams, History& history, int observation_particle_size) const {
+
+	//ValuedAction Value(const vector<State*>& particles, RandomStreams& streams,
+	//	History& history, int observation_particle_size = -1) const {
 		vector<double> expected_sampling_value = vector<double>(
 			rs_model_->num_rocks_);
 		int state = 0;
 		Coord rob_pos(-1, -1);
 		double total_weight = 0;
+                
+                vector<State*> particles;
+            ParticleNode::particles_vector(particle_node, obs_particle_ids, observation_particle_size, particles, true);
+                /*
+                if(observation_particle_size > 0)
+                {
+                    for (map<int, State*>::iterator it = particle_node->particles_.begin();
+                    it != particle_node->particles_.end(); it++)
+                    {
+                        State* particle = it->second;
+                        particles.push_back(particle);
+                    }
+                }
+                else
+                {
+                    for(int i = 0; i < obs_particle_ids.size(); i++)
+                    {
+                     int ii = obs_particle_ids[i];
+                     State* particle = particle_node->particle(ii);
+                     particles.push_back(particle);
+                    } 
+                }
+                */
 		for (int i = 0; i < particles.size(); i++) {
-			State* particle = particles[i];
+			State* particl = particles[i];
+                        double particle_weight = particl->Weight(particle_weights);
+                       
 			state = (1 << rs_model_->num_rocks_)
-				* rs_model_->GetRobPosIndex(particle);
-			rob_pos = rs_model_->GetRobPos(particle);
+				* rs_model_->GetRobPosIndex(particl);
+			rob_pos = rs_model_->GetRobPos(particl);
 			for (int r = 0; r < rs_model_->num_rocks_; r++) {
-				expected_sampling_value[r] += particle->weight
-					* (CheckFlag(particle->state_id, r) ? 10 : -10);
+				expected_sampling_value[r] += particle_weight
+					* (CheckFlag(particl->state_id, r) ? 10 : -10);
 			}
-			total_weight += particle->weight;
+			total_weight += particle_weight;
 		}
 
 		for (int rock = 0; rock < rs_model_->num_rocks_; rock++)
@@ -496,20 +529,45 @@ public:
 		rs_model_(static_cast<const BaseRockSample*>(model)),
 		grid_(rs_model_->grid_) {
 	}
+        
 
-	ValuedAction Value(const vector<State*>& particles, RandomStreams& streams,
-		History& history, int observation_particle_size = -1) const {
+        ValuedAction Value(ParticleNode* particle_node, std::vector< double>& particle_weights, std::vector<int>& obs_particle_ids, RandomStreams& streams, History& history, int observation_particle_size) const {
+
+	// ValuedAction Value(const vector<State*>& particles, RandomStreams& streams,
+	//	History& history, int observation_particle_size = -1) const {
 		vector<double> expected_sampling_value = vector<double>(
 			rs_model_->num_rocks_);
 		Coord rob_pos;
 		double weight = 0;
+                //vector<State*> particles ;
+                vector<State*> particles;
+            ParticleNode::particles_vector(particle_node, obs_particle_ids, observation_particle_size, particles, true);
+                /*if(observation_particle_size > 0)
+                {
+                    for (map<int, State*>::iterator it = particle_node->particles_.begin();
+                    it != particle_node->particles_.end(); it++)
+                    {
+                        State* particle = it->second;
+                        particles.push_back(particle);
+                    }
+                }
+                else
+                {
+                    for(int i = 0; i < obs_particle_ids.size(); i++)
+                    {
+                     int ii = obs_particle_ids[i];
+                     State* particle = particle_node->particle(ii);
+                     particles.push_back(particle);
+                    } 
+                }*/
 		for (int i = 0; i < particles.size(); i++) {
-			State* particle = particles[i];
-			rob_pos = rs_model_->GetRobPos(particle);
-			weight += particle->weight;
+			State* particl = particles[i];
+                        double particle_weight = particl->Weight(particle_weights);
+			rob_pos = rs_model_->GetRobPos(particl);
+			weight += particle_weight;
 			for (int i = 0; i < rs_model_->num_rocks_; i++) {
-				expected_sampling_value[i] += particle->weight
-					* (rs_model_->GetRock(particle, i) ? 10 : -10);
+				expected_sampling_value[i] += particle_weight
+					* (rs_model_->GetRock(particl, i) ? 10 : -10);
 			}
 		}
 
@@ -647,7 +705,7 @@ public:
 		double value = 0;
 		for (int i = 0; i < particles.size(); i++) {
 			State* particle = particles[i];
-			value += particle->weight * policy_[particle->state_id].value;
+			value += particle->Weight() * policy_[particle->state_id].value;
 		}
 
 		return value;
@@ -834,8 +892,8 @@ void BaseRockSample::PrintBelief(const Belief& belief, ostream& out) const {
 		State* particle = particles[i];
 		for (int rock = 0; rock < num_rocks_; rock++)
 			rock_probs[rock] += CheckFlag(particle->state_id, rock)
-				* particle->weight;
-		pos_probs[particle->state_id >> num_rocks_] += particle->weight;
+				* particle->Weight();
+		pos_probs[particle->state_id >> num_rocks_] += particle->Weight();
 	}
 
 	out << "Rock belief:";
@@ -863,7 +921,7 @@ void BaseRockSample::PrintAction(int action, ostream& out) const {
 State* BaseRockSample::Allocate(int state_id, double weight) const {
 	RockSampleState* state = memory_pool_.Allocate();
 	state->state_id = state_id;
-	state->weight = weight;
+	state->Weight(weight);
 	return state;
 }
 
@@ -899,7 +957,7 @@ Belief* BaseRockSample::Tau(const Belief* belief, int action,
 			continue; // ignore terminal state
 
 		const RockSampleState& next = *(states_[id]);
-		double p = state->weight * ObsProb(obs, next, action);
+		double p = state->Weight() * ObsProb(obs, next, action);
 		probs[id] += p;
 		sum += p;
 	}
@@ -908,7 +966,7 @@ Belief* BaseRockSample::Tau(const Belief* belief, int action,
 	for (int i = 0; i < NumStates(); i++) {
 		if (probs[i] > 0) {
 			State* new_particle = Copy(states_[i]);
-			new_particle->weight = probs[i] / sum;
+			new_particle->Weight(probs[i] / sum);
 			new_particles.push_back(new_particle);
 			probs[i] = 0;
 		}
@@ -948,13 +1006,13 @@ void BaseRockSample::Observe(const Belief* belief, int action,
 				+ pow(2, -distance / half_efficiency_distance_)) * 0.5;
 
 			if (GetRock(&next, rock)) {
-				obss[E_GOOD] += state->weight * efficiency;
+				obss[E_GOOD] += state->Weight() * efficiency;
 				if (efficiency != 1)
-					obss[E_BAD] += state->weight * (1 - efficiency);
+					obss[E_BAD] += state->Weight() * (1 - efficiency);
 			} else {
-				obss[E_BAD] += state->weight * efficiency;
+				obss[E_BAD] += state->Weight() * efficiency;
 				if (efficiency != 1)
-					obss[E_GOOD] += state->weight * (1 - efficiency);
+					obss[E_GOOD] += state->Weight() * (1 - efficiency);
 			}
 		}
 	}
@@ -967,7 +1025,7 @@ double BaseRockSample::StepReward(const Belief* belief, int action) const {
 	double value = 0;
 	for (int i = 0; i < particles.size(); i++) {
 		State* particle = particles[i];
-		value += particle->weight * Reward(particle->state_id, action);
+		value += particle->Weight() * Reward(particle->state_id, action);
 	}
 
 	return value;
@@ -1104,7 +1162,7 @@ void BaseRockSample::InitializeTransitions() {
 		for (int a = 0; a < num_actions; a++) {
 			State state;
 			state.state_id = NextState(s, a);
-			state.weight = 1.0;
+			state.Weight(1.0);
 			transition_probabilities_[s][a].push_back(state);
 		}
 	}
@@ -1178,7 +1236,7 @@ RockSampleState* BaseRockSample::MajorityRockSampleState(
 		State* particle = particles[i];
 		state = (1 << num_rocks_) * GetRobPosIndex(particle);
 		for (int i = 0; i < num_rocks_; i++) {
-			probs[i] += particle->weight * (2 * GetRock(particle, i) - 1);
+			probs[i] += particle->Weight() * (2 * GetRock(particle, i) - 1);
 		}
 	}
 

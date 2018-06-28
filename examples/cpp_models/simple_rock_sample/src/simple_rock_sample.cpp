@@ -188,8 +188,11 @@ public:
 		Policy(model, bound) {
 	}
 
-	int Action(const vector<State*>& particles, RandomStreams& streams,
-		History& history) const {
+
+        virtual int Action(ParticleNode* particle_node, std::vector<double>& particle_weights, std::vector<int>& obs_particle_ids, RandomStreams& streams, History& history, int observation_particle_size) const
+        {
+	//int Action(const vector<State*>& particles, RandomStreams& streams,
+	//	History& history) const {
 		return 1; // move east
 	}
 };
@@ -216,7 +219,7 @@ ScenarioLowerBound* SimpleRockSample::CreateScenarioLowerBound(string name,
 State* SimpleRockSample::Allocate(int state_id, double weight) const {
 	SimpleState* state = memory_pool_.Allocate();
 	state->state_id = state_id;
-	state->weight = weight;
+	state->Weight(weight);
 	return state;
 }
 
@@ -260,8 +263,8 @@ void SimpleRockSample::PrintBelief(const Belief& belief, ostream& out) const {
 	for (int i = 0; i < particles.size(); i++) {
 		State* particle = particles[i];
 		const SimpleState* state = static_cast<const SimpleState*>(particle);
-		rock_status += state->rock_status * particle->weight;
-		pos_probs[state->rover_position] += particle->weight;
+		rock_status += state->rock_status * particle->Weight();
+		pos_probs[state->rover_position] += particle->Weight();
 	}
 
 	out << "Rock belief: " << rock_status << endl;

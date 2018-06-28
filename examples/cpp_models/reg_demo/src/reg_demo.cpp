@@ -109,7 +109,7 @@ bool RegDemo::Step(State& s, double random_num, int action, double& reward,
 	double sum = 0;
 	for (int i = 0; i < distribution.size(); i++) {
 		const State& next = distribution[i];
-		sum += next.weight;
+		sum += next.Weight();
 		if (sum >= random_num) {
 			state.state_id = next.state_id;
 			break;
@@ -146,7 +146,7 @@ void RegDemo::PrintTransitions() const {
 				<< " outcomes for action " << a << endl;
 			for (int i = 0; i < transition_probabilities_[s][a].size(); i++) {
 				const State& next = transition_probabilities_[s][a][i];
-				cout << "Next = (" << next.state_id << ", " << next.weight
+				cout << "Next = (" << next.state_id << ", " << next.Weight()
 					<< ")" << endl;
 				PrintState(*GetState(next.state_id));
 			}
@@ -252,7 +252,7 @@ void RegDemo::PrintAction(int action, ostream& out) const {
 State* RegDemo::Allocate(int state_id, double weight) const {
 	RegDemoState* state = memory_pool_.Allocate();
 	state->state_id = state_id;
-	state->weight = weight;
+	state->Weight(weight);
 	return state;
 }
 

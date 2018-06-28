@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <despot/core/globals.h>
 #include <despot/core/pomdp.h>
+#include <despot/core/node.h>
 
 namespace despot {
 
@@ -22,11 +23,12 @@ class StateIndexer;
 class StatePolicy;
 class DSPOMDP;
 class MMAPInferencer;
+//class ParticleNode;
 
 /* =============================================================================
  * ValuedAction struct
  * =============================================================================*/
-
+/* Moved to node.h
 struct ValuedAction {
 	int action;
 	double value;
@@ -36,7 +38,7 @@ struct ValuedAction {
 
 	friend std::ostream& operator<<(std::ostream& os, const ValuedAction& va);
 };
-
+*/
 /* =============================================================================
  * Policy class
  * =============================================================================*/
@@ -46,8 +48,8 @@ private:
 	mutable int initial_depth_;
 	ParticleLowerBound* particle_lower_bound_;
 
-	ValuedAction RecursiveValue(const std::vector<State*>& particles,
-		RandomStreams& streams, History& history, 
+	ValuedAction RecursiveValue(ParticleNode* particle_node, std::vector<double>& particle_weights,
+		std::vector<int> & obs_particle_ids, RandomStreams& streams, History& history, 
                 int observation_particle_size) const;
 
 public:
@@ -56,12 +58,12 @@ public:
 	virtual ~Policy();
 
 	void Reset();
-	virtual int Action(const std::vector<State*>& particles, RandomStreams& streams,
-		History& history) const = 0;
+	virtual int Action(ParticleNode* particle_node, std::vector<double>& particle_weights, std::vector<int> & obs_particle_ids, RandomStreams& streams,
+		History& history, int observation_particle_size) const = 0;
 
 	ParticleLowerBound* particle_lower_bound() const;
 
-	ValuedAction Value(const std::vector<State*>& particles, RandomStreams& streams,
+	ValuedAction Value(ParticleNode* particle_node, std::vector<double>& particle_weights, std::vector<int> & obs_particle_ids, RandomStreams& streams,
 		History& history, int observation_particle_size) const;
 
 	virtual ValuedAction Search();
@@ -79,8 +81,8 @@ public:
 	BlindPolicy(const DSPOMDP* model, int action, ParticleLowerBound*
 		particle_lower_bound, Belief* belief = NULL);
 
-	int Action(const std::vector<State*>& particles, RandomStreams& streams,
-		History& history) const;
+	int Action(ParticleNode* particle_node, std::vector<double>& particle_weights, std::vector<int> & obs_particle_ids, RandomStreams& streams,
+		History& history, int observation_particle_size) const;
 
 	ValuedAction Search();
 	void Update(int action, OBS_TYPE obs);
@@ -101,8 +103,8 @@ public:
 		ParticleLowerBound* ParticleLowerBound,
 		Belief* belief = NULL);
 
-	int Action(const std::vector<State*>& particles, RandomStreams& streams,
-		History& history) const;
+	int Action(ParticleNode* particle_node, std::vector<double>& particle_weights, std::vector<int> & obs_particle_ids, RandomStreams& streams,
+		History& history, int observation_particle_size) const;
 
 	ValuedAction Search();
 	void Update(int action, OBS_TYPE obs);
@@ -123,8 +125,8 @@ public:
 		const StatePolicy& policy, ParticleLowerBound* particle_lower_bound,
 		Belief* belief = NULL);
 
-	int Action(const std::vector<State*>& particles, RandomStreams& streams,
-		History& history) const;
+	int Action(ParticleNode* particle_node, std::vector<double>& particle_weights, std::vector<int> & obs_particle_ids, RandomStreams& streams,
+		History& history, int observation_particle_size) const;
 };
 
 /* =============================================================================
@@ -141,8 +143,8 @@ public:
 		const StatePolicy& policy, ParticleLowerBound* particle_lower_bound,
 		Belief* belief = NULL);
 
-	int Action(const std::vector<State*>& particles, RandomStreams& streams,
-		History& history) const;
+	int Action(ParticleNode* particle_node, std::vector<double>& particle_weights, std::vector<int> & obs_particle_ids, RandomStreams& streams,
+		History& history, int observation_particle_size) const;
 };
 
 /* =============================================================================
@@ -157,8 +159,8 @@ public:
 	MajorityActionPolicy(const DSPOMDP* model, const StatePolicy& policy,
 		ParticleLowerBound* particle_lower_bound, Belief* belief = NULL);
 
-	int Action(const std::vector<State*>& particles, RandomStreams& streams,
-		History& history) const;
+	int Action(ParticleNode* particle_node, std::vector<double>& particle_weights, std::vector<int> & obs_particle_ids, RandomStreams& streams,
+		History& history, int observation_particle_size) const;
 };
 
 } // namespace despot

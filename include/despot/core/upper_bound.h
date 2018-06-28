@@ -15,6 +15,7 @@ class DSPOMDP;
 class Belief;
 class MDP;
 struct ValuedAction;
+class ParticleNode;
 
 /* =============================================================================
  * ScenarioUpperBound class
@@ -27,7 +28,8 @@ public:
 
 	virtual void Init(const RandomStreams& streams);
 
-	virtual double Value(const std::vector<State*>& particles,
+	virtual double Value(ParticleNode* particle_node, std::vector<double>& particle_weights,
+		std::vector<int> & obs_particle_ids, 
 		RandomStreams& streams, History& history, int observation_particle_size) const = 0;
 };
 
@@ -46,7 +48,8 @@ public:
 	 */
 	virtual double Value(const State& state) const = 0;
 
-	virtual double Value(const std::vector<State*>& particles,
+	virtual double Value(ParticleNode* particle_node, std::vector<double>& particle_weights,
+		std::vector<int> & obs_particle_ids, 
 		RandomStreams& streams, History& history, int observation_particle_size) const;
 };
 
@@ -63,7 +66,8 @@ public:
 
 	double Value(const State& state) const;
 
-	virtual double Value(const std::vector<State*>& particles,
+	virtual double Value(ParticleNode* particle_node, std::vector<double>& particle_weights,
+		std::vector<int> & obs_particle_ids, 
 		RandomStreams& streams, History& history, int observation_particle_size) const;
 };
 
@@ -84,7 +88,8 @@ public:
 
 	virtual void Init(const RandomStreams& streams);
 
-	double Value(const std::vector<State*>& particles,
+	double Value(ParticleNode* particle_node, std::vector<double>& particle_weights,
+		std::vector<int> & obs_particle_ids, 
 		RandomStreams& streams, History& history, int observation_particle_size) const;
 };
 
