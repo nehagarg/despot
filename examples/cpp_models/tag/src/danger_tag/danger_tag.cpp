@@ -42,16 +42,23 @@ namespace despot {
     Belief* DangerTag::InitialBelief(const State* start, std::string type) const {
             assert(start != NULL);
 
+            int start_opp = 0;
+            int end_opp = floor_.NumCells();
+            if (opp_start_input != NULL) {
+		
+		start_opp= floor_.GetIndex(*opp_start_input);
+                end_opp = start_opp + 1;
+	}
             std::vector<State*> particles;
-            for (int opp = 0; opp < floor_.NumCells(); opp++) {
+            for (int opp = start_opp; opp < end_opp; opp++) {
                     if (rob_start_positions.size() == 0) {
                             for (int rob = 0; rob < floor_.NumCells(); rob++) {
-                                    TagState* state = static_cast<TagState*>(Allocate(RobOppIndicesToStateIndex(rob, opp), 1.0 / (floor_.NumCells() * floor_.NumCells())));
+                                    TagState* state = static_cast<TagState*>(Allocate(RobOppIndicesToStateIndex(rob, opp), 1.0 / ((end_opp-start_opp) * floor_.NumCells())));
                                     particles.push_back(state);
                             }
                     } else {
                             for (int robi = 0; robi < rob_start_positions.size(); robi++) {
-                                    TagState* state = static_cast<TagState*>(Allocate(RobOppIndicesToStateIndex(rob_start_positions[robi], opp), 1.0 / (floor_.NumCells() * rob_start_positions.size())));
+                                    TagState* state = static_cast<TagState*>(Allocate(RobOppIndicesToStateIndex(rob_start_positions[robi], opp), 1.0 / ((end_opp-start_opp) * rob_start_positions.size())));
                                     particles.push_back(state);
                             }
                     }
