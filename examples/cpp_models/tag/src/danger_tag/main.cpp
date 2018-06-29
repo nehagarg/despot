@@ -12,8 +12,9 @@ public:
   DSPOMDP* InitializeModel(option::Option* options) {
       BaseTag::NUM_ACTIONS = DangerTag::NUM_DIRECTIONS + 1;
       BaseTag::ERRORS_PER_DIRECTION = 2;
-      BaseTag::DEFAULT_MOVEMENT_ERROR = 0.3;
-      BaseTag::DANGER_PENALTY = -3;
+      BaseTag::DEFAULT_MOVEMENT_ERROR = 0.4;
+      BaseTag::DANGER_PENALTY = -20;
+      BaseTag::STABLE_OPPONENT = true;
       
     DSPOMDP* model = !options[E_PARAMS_FILE] ?
       new DangerTag() : new DangerTag(options[E_PARAMS_FILE].arg);

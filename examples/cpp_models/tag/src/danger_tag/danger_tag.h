@@ -37,7 +37,7 @@ public:
     
 
     void PrintAction(int action, std::ostream& out) const;
-
+    
 
 private:
 

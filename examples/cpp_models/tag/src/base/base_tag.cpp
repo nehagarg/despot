@@ -98,7 +98,7 @@ public:
 		}
 
 		// Don't double back and don't go into walls
-		for (int d = 0; d < 4; d++) {
+		for (int d = 0; d < (model_->NumActions()-1); d++) {
 			if (!Compass::Opposite(d, history.LastAction())
 				&& floor_.Inside(rob + Compass::DIRECTIONS[d])) {
 				actions.push_back(d);
@@ -107,7 +107,7 @@ public:
 
 		// Have to double back
 		if (actions.size() == 0) {
-			for (int d = 0; d < 4; d++) {
+			for (int d = 0; d < (model_->NumActions()-1); d++) {
 				if (floor_.Inside(rob + Compass::DIRECTIONS[d]))
 					actions.push_back(d);
 			}
@@ -198,7 +198,7 @@ public:
 		else {
 			vector<int> policy = floor_.ComputeShortestPath(rob, opp);
 
-			first_action_ = (policy.size() > 0) ? policy[0] : Random::RANDOM.NextInt(4);
+			first_action_ = (policy.size() > 0) ? policy[0] : Random::RANDOM.NextInt(model_->NumActions()-1);
 		}
 
 		paths_.clear();
@@ -246,14 +246,14 @@ public:
 		}
 
 		// Don't double back and don't go into walls
-		for (int d = 0; d < 4; d ++) {
+		for (int d = 0; d < (model_->NumActions()-1); d ++) {
 			if (!Compass::Opposite(d, history.LastAction()) && floor_.Inside(rob + Compass::DIRECTIONS[d])) {
 				actions.push_back(d);
 			}
 		}
 
 		if (actions.size() == 0) {
-			for (int d = 0; d < 4; d ++) {
+			for (int d = 0; d < (model_->NumActions()-1); d ++) {
 				if (floor_.Inside(rob + Compass::DIRECTIONS[d]))
 				actions.push_back(d);
 			}
@@ -295,7 +295,7 @@ public:
 				preferred_actions_.push_back(tag_model_->TagAction());
 			} else {
 				if (tag_model_->robot_pos_unknown_) {
-					for (int a = 0; a < 4; a++) {
+					for (int a = 0; a < (model_->NumActions()-1); a++) {
 						if (tag_model_->floor_.Inside(
 							rob + Compass::DIRECTIONS[a])) {
 							if (!Compass::Opposite(a, history_.LastAction()))
@@ -420,6 +420,7 @@ double BaseTag::DANGER_PENALTY = 0;
 int BaseTag::NUM_ACTIONS = 5;
 int BaseTag::ERRORS_PER_DIRECTION = 0;
 double BaseTag::DEFAULT_MOVEMENT_ERROR = 0.0;
+bool BaseTag::STABLE_OPPONENT = false;
 
 const int BaseTag::ERROR_MOVES[8][2] = {
 	{7, 4},
@@ -638,7 +639,11 @@ map<int, double> BaseTag::OppTransitionDistribution(int state) const {
 	Coord rob = floor_.GetCell(rob_[state]), opp = floor_.GetCell(opp_[state]);
 
 	map<int, double> distribution;
-
+        if(BaseTag::STABLE_OPPONENT)
+        {
+            distribution[floor_.GetIndex(opp)] = 1.0;
+            return distribution;
+        }
 	if (opp.x == rob.x) {
 		int index =
 			floor_.Inside(opp + Coord(1, 0)) ?
@@ -911,7 +916,7 @@ void BaseTag::ComputeDefaultActions(string type) const {
 				default_action_[s] = TagAction();
 			} else {
 				double cur_dist = floor_.Distance(rob_[s], opp_[s]);
-				for (int a = 0; a < 4; a++) {
+				for (int a = 0; a < NumActions()-1; a++) {
 					int next = NextRobPosition(rob_[s], a);
 					double dist = floor_.Distance(next, opp_[s]);
 

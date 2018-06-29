@@ -48,7 +48,7 @@ protected:
         
         //Used for danger tag only
         //==========================
-        static double DANGER_PENALTY ;
+        
         
         std::vector< std::vector<bool> > dangers;
 	std::vector<int> rob_start_positions; // possible positions where robot may start
@@ -63,7 +63,7 @@ protected:
 	mutable MemoryPool<TagState> memory_pool_;
 
 protected:
-  std::map<int, double> OppTransitionDistribution(int state) const;
+  virtual std::map<int, double> OppTransitionDistribution(int state) const;
 
 	void ReadConfig(std::istream& is);
 	virtual void Init(std::istream& is);
@@ -87,6 +87,8 @@ public:
         static int ERRORS_PER_DIRECTION;
         static const int ERROR_MOVES[8][2];
         static double DEFAULT_MOVEMENT_ERROR;
+        static double DANGER_PENALTY ;
+        static bool STABLE_OPPONENT;
         
 	BaseTag();
 	BaseTag(std::string params_file);
