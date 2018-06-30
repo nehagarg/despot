@@ -542,7 +542,8 @@ ValuedAction DESPOT::OptimalAction(VNode* vnode) {
 	ValuedAction astar(-1, Globals::NEG_INFTY);
 	for (int action = 0; action < vnode->children().size(); action++) {
 		QNode* qnode = vnode->Child(action);
-		std::cout << "(" << action << "," << qnode->lower_bound() << ") " ;
+		std::cout << "(" << action << "," << qnode->lower_bound()
+                        << "," << qnode->upper_bound() << ") " ;
 		if (qnode->lower_bound() > astar.value) {
 			astar = ValuedAction(action, qnode->lower_bound());
 		}
