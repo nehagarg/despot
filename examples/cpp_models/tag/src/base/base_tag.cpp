@@ -483,6 +483,15 @@ void BaseTag::ReadConfig(istream& is) {
 			istringstream iss(RandomMap(h, w, o));
 			ReadConfig(iss);
 		}
+                else if (key == "movement-error")
+                {
+                    is >> movement_error;
+                }
+                else if (key == "danger-penalty")
+                {
+                    is >> BaseTag::DANGER_PENALTY;
+                }
+                
 	}
 }
 
@@ -616,7 +625,17 @@ bool BaseTag::Step(State& s, double random_num, int action,
 }
 
 int BaseTag::NumStates() const {
-	return floor_.NumCells() * floor_.NumCells();
+    int num_opp = floor_.NumCells();
+    /*if(opp_start_input != NULL)
+    {
+        num_opp = 1;
+    }*/
+    int num_rob = floor_.NumCells();
+    /*if(rob_start_positions.size() > 0)
+    {
+        num_rob = rob_start_positions.size();
+    }*/
+	return num_opp * num_rob;
 }
 
 const vector<State>& BaseTag::TransitionProbability(int s, int a) const {
@@ -839,6 +858,7 @@ POMCPPrior* BaseTag::CreatePOMCPPrior(string name) const {
 void BaseTag::PrintState(const State& s, ostream& out) const {
 	const TagState& state = static_cast<const TagState&>(s);
 
+        out << s << std::endl;
 	int aindex = rob_[state.state_id];
 	int oindex = opp_[state.state_id];
 
