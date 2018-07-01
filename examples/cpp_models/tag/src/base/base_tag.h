@@ -35,6 +35,7 @@ class BaseTag: public MDP,
 	friend class TagManhattanUpperBound;
 	friend class TagPOMCPPrior;
 	friend class TagHistoryModePolicy;
+        friend class DangerTagPolicy;
 
 protected:
 	static double TAG_REWARD;
@@ -139,7 +140,7 @@ public:
 		std::string particle_bound_name = "DEFAULT") const;
 	BeliefUpperBound* CreateBeliefUpperBound(std::string name = "DEFAULT") const;
 
-	inline ValuedAction GetMinRewardAction() const {
+	virtual inline ValuedAction GetMinRewardAction() const {
 		return ValuedAction(0, -1);
 	}
 	ScenarioLowerBound* CreateScenarioLowerBound(std::string name = "DEFAULT",

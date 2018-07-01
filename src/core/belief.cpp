@@ -335,13 +335,16 @@ void ParticleBelief::Update(int action, OBS_TYPE obs) {
 	double reward;
 	OBS_TYPE o;
 	// Update particles
-        std::cout << "Updating particles" << std::endl;
+        //std::cout << "Updating particles with action " ; //<< std::endl;
+        //model_->PrintAction(action);
 	for (int i = 0; i <particles_.size(); i++) {
 		State* particle = particles_[i];
                 //model_->PrintState(*particle);
 		bool terminal = model_->Step(*particle, Random::RANDOM.NextDouble(),
 			action, reward, o);
                 //model_->PrintState(*particle);
+                //std::cout << *particle << std::endl;
+          //      model_->PrintObs(*particle, obs);
 		double prob = model_->ObsProb(obs, *particle, action);
                 //std::cout << "Obs Prob:" <<  prob << std::endl;
                 

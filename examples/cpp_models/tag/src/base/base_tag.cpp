@@ -60,6 +60,40 @@ void TagBelief::Update(int action, OBS_TYPE obs) {
 	delete updated;
 }
 
+
+/* ==============================================================================
+ * TagSHRPolicy class
+ * ==============================================================================*/
+
+class DangerTagPolicy: public Policy { // Smart History-based Rollout
+private:
+	const BaseTag* tag_model_;
+	Floor floor_;
+
+public:
+	DangerTagPolicy(const DSPOMDP* model, ParticleLowerBound* bound) :
+		Policy(model, bound),
+		tag_model_(static_cast<const BaseTag*>(model)) {
+		floor_ = tag_model_->floor();
+	}
+
+	int Action(const vector<State*>& particles, RandomStreams& streams,
+		History& history) const {
+            
+            int se = 5;
+            if (history.Size() == 0) {
+                return se;
+            }
+            if (history.LastObservation() == tag_model_->same_loc_obs_) {
+			return tag_model_->TagAction();
+		}
+            else
+            {
+                return se; //5 = SE
+            }
+        }
+};
+
 /* ==============================================================================
  * TagSHRPolicy class
  * ==============================================================================*/
@@ -608,6 +642,10 @@ bool BaseTag::Step(State& s, double random_num, int action,
 			terminal = true;
 		} else {
 			reward = -TAG_REWARD;
+                        if (DANGER_PENALTY < -TAG_REWARD)
+                        {
+                            reward = DANGER_PENALTY;
+                        }
 		}
 	} else {
             Coord rob_position = floor_.GetCell(rob_[state.state_id]);
@@ -821,7 +859,11 @@ ScenarioLowerBound* BaseTag::CreateScenarioLowerBound(string name, string
 		ComputeDefaultActions("SP");
 		return new MajorityActionPolicy(model, *policy,
 			CreateParticleLowerBound(particle_bound_name));
-	} else {
+	} else if (name == "DANGERTAG") {
+		return new DangerTagPolicy(model,
+			CreateParticleLowerBound(particle_bound_name));
+	} 
+        else {
 		if (name != "print")
 			cerr << "Unsupported lower bound: " << name << endl;
 		cerr << "Supported types: TRIVIAL, RANDOM, SHR, MODE-MDP, MODE-SP, MAJORITY-MDP, MAJORITY-SP (default to MODE-MDP)" << endl;

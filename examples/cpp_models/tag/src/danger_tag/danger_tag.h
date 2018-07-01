@@ -39,6 +39,12 @@ public:
     void PrintAction(int action, std::ostream& out) const;
     
 
+
+        inline ValuedAction GetMinRewardAction() const
+        {
+            return ValuedAction(0,DANGER_PENALTY);
+        }
+
 private:
 
 };

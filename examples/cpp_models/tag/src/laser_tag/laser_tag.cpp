@@ -71,6 +71,23 @@ void LaserTag::Init() {
 			}
 		}
 	}
+        /*std::cout << "Printing reading distributions" << std::endl;
+        for (int s = 0; s < NumStates(); s++)
+        {
+         Coord opp = floor_.GetCell(
+		opp_[(*states_[s]).state_id]); 
+         if(opp.x == 11 && opp.y == 0)
+         {
+            for (int d = 0; d < NBEAMS; d++) {
+                std::cout << *states_[s] << " " << d << ": ";
+                        for(int i = 0; i < reading_distributions_[s][d].size(); i++)
+                        {
+                            std::cout << reading_distributions_[s][d][i] << " ";
+                        }
+                std::cout << std::endl;
+            }
+         }
+        }*/
 }
 
 bool LaserTag::Step(State& state, double random_num, int action,
