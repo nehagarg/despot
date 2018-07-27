@@ -38,6 +38,7 @@ add_library("${PROJECT_NAME}" SHARED
   src/solver/despot.cpp
   src/solver/pomcp.cpp
   src/solver/DespotWithBeliefTracking.cpp
+  src/solver/DespotWithAlphaFunctionUpdate.cpp
   src/test/util_test.cpp
   src/util/coord.cpp
   src/util/dirichlet.cpp
@@ -61,13 +62,13 @@ target_link_libraries("${PROJECT_NAME}"
 
 if(DESPOT_BUILD_EXAMPLES)
   add_subdirectory(examples/cpp_models/adventurer)
-  add_subdirectory(examples/cpp_models/bridge)
-  add_subdirectory(examples/cpp_models/chain)
-  add_subdirectory(examples/cpp_models/navigation)
-  add_subdirectory(examples/cpp_models/pocman)
-  add_subdirectory(examples/cpp_models/reg_demo)
-  add_subdirectory(examples/cpp_models/rock_sample)
-  add_subdirectory(examples/cpp_models/simple_rock_sample)
+  #add_subdirectory(examples/cpp_models/bridge)
+  #add_subdirectory(examples/cpp_models/chain)
+  #add_subdirectory(examples/cpp_models/navigation)
+  #add_subdirectory(examples/cpp_models/pocman)
+  #add_subdirectory(examples/cpp_models/reg_demo)
+  #add_subdirectory(examples/cpp_models/rock_sample)
+  #add_subdirectory(examples/cpp_models/simple_rock_sample)
   add_subdirectory(examples/cpp_models/tag)
   add_subdirectory(examples/cpp_models/tiger)
 endif()

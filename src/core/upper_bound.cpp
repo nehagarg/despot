@@ -41,7 +41,14 @@ double ParticleUpperBound::Value(const vector<State*>& particles,
             value = value*observation_particle_size*1.0/Globals::config.num_scenarios;
         }
 	return value;
-}
+    }
+
+    void ParticleUpperBound::Value(const std::vector<State*>& particles, RandomStreams& streams, History& history, int observation_particle_size, std::vector<double>& alpha_vector_upper_bound) const {
+        for (int i = 0; i < particles.size(); i++) {
+		State* particle = particles[i];
+		alpha_vector_upper_bound[particle->scenario_id] = Value(*particle);
+	}
+    }
 
 /* =============================================================================
  * TrivialParticleUpperBound
@@ -67,7 +74,16 @@ double TrivialParticleUpperBound::Value(const vector<State*>& particles,
             value = value*observation_particle_size*1.0/Globals::config.num_scenarios;
         }
 	return value;
-}
+    }
+
+    void TrivialParticleUpperBound::Value(const std::vector<State*>& particles, RandomStreams& streams, History& history, int observation_particle_size, std::vector<double>& alpha_vector_upper_bound) const {
+        double max_value = model_->GetMaxReward() / (1 - Globals::Discount());
+        for (int i = 0; i < particles.size(); i++) {
+		State* particle = particles[i];
+		alpha_vector_upper_bound[particle->scenario_id] = max_value;
+	}
+    }
+
 
 /* =============================================================================
  * LookaheadUpperBound
@@ -136,7 +152,16 @@ double LookaheadUpperBound::Value(const vector<State*>& particles,
             bound = bound*observation_particle_size*1.0/Globals::config.num_scenarios;
         }
 	return bound;
-}
+    }
+
+    void LookaheadUpperBound::Value(const std::vector<State*>& particles, RandomStreams& streams, History& history, int observation_particle_size, std::vector<double>& alpha_vector_upper_bound) const {
+        for (int i = 0; i < particles.size(); i++) {
+		State* particle = particles[i];
+		alpha_vector_upper_bound[particle->scenario_id]=
+				bounds_[particle->scenario_id][streams.position()][indexer_.GetIndex(
+					particle)];
+	}
+    }
 
 
 /* =============================================================================

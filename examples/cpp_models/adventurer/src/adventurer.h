@@ -91,7 +91,7 @@ public:
 		std::string particle_bound_name = "DEFAULT") const;
 
 	inline ValuedAction GetMinRewardAction() const {
-		return ValuedAction(0, 0);
+		return ValuedAction(0, 0.0);
 	}
 	ScenarioLowerBound* CreateScenarioLowerBound(std::string name = "DEFAULT",
 		std::string particle_bound_name = "DEFAULT") const;

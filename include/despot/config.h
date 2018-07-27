@@ -18,6 +18,7 @@ struct Config {
 	int max_policy_sim_len; // Maximum number of steps for simulating the default policy
 	double noise;
 	bool silence;
+        bool track_alpha_vector;
 
 	Config() :
 		search_depth(90),
@@ -31,7 +32,8 @@ struct Config {
 		default_action(""),
 		max_policy_sim_len(90),
 		noise(0.1),
-		silence(false) {
+		silence(false), 
+                track_alpha_vector(false){
 	}
 };
 

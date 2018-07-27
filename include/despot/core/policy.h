@@ -30,10 +30,11 @@ class MMAPInferencer;
 struct ValuedAction {
 	int action;
 	double value;
-
+        std::vector<double> * value_array;
 	ValuedAction();
 	ValuedAction(int _action, double _value);
-
+        ValuedAction(int _action,  std::vector<double> * _value_array);
+        ~ValuedAction();
 	friend std::ostream& operator<<(std::ostream& os, const ValuedAction& va);
 };
 

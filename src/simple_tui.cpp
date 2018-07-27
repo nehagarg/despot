@@ -23,7 +23,7 @@ Solver *SimpleTUI::InitializeSolver(DSPOMDP *model, string solver_type,
   // DESPOT or its default policy
   if (solver_type == "DESPOT" ||
       solver_type == "PLB" ||
-      solver_type == "BTDESPOT") // PLB: particle lower bound
+      solver_type == "BTDESPOTALPHA") // PLB: particle lower bound
   {
     string blbtype = options[E_BLBTYPE] ? options[E_BLBTYPE].arg : "DEFAULT";
     string lbtype = options[E_LBTYPE] ? options[E_LBTYPE].arg : "DEFAULT";
@@ -32,7 +32,7 @@ Solver *SimpleTUI::InitializeSolver(DSPOMDP *model, string solver_type,
 
     logi << "Created lower bound " << typeid(*lower_bound).name() << endl;
 
-    if (solver_type == "DESPOT" || solver_type == "BTDESPOT") {
+    if (solver_type == "DESPOT" || solver_type == "BTDESPOTALPHA" ) {
       string bubtype = options[E_BUBTYPE] ? options[E_BUBTYPE].arg : "DEFAULT";
       string ubtype = options[E_UBTYPE] ? options[E_UBTYPE].arg : "DEFAULT";
       ScenarioUpperBound *upper_bound =
@@ -43,9 +43,10 @@ Solver *SimpleTUI::InitializeSolver(DSPOMDP *model, string solver_type,
       {
         solver = new DESPOT(model, lower_bound, upper_bound);
       }
-      if (solver_type == "BTDESPOT")
+      if (solver_type == "BTDESPOTALPHA")
       {
-        solver = new DespotWithBeliefTracking(model, lower_bound, upper_bound);
+        solver = new DespotWithAlphaFunctionUpdate(model, lower_bound, upper_bound);
+        Globals::config.track_alpha_vector = true;
       }
     } else
       solver = lower_bound;

@@ -36,8 +36,9 @@ ValuedAction Policy::Value(const vector<State*>& particles,
         
         //std::cout << "Num active particles 1 :" << model_->NumActiveParticles() << std::endl;
 	initial_depth_ = history.Size();
-	ValuedAction va = RecursiveValue(copy, streams, history, observation_particle_size );
+	ValuedAction va;
         
+        va = RecursiveValue(copy, streams, history, observation_particle_size );
         //std::cout << "Num active particles 2 :" << model_->NumActiveParticles() << std::endl;
         //Belief particles get freed in recursive value function
         int free_particle_size = copy.size();
@@ -46,11 +47,11 @@ ValuedAction Policy::Value(const vector<State*>& particles,
             free_particle_size = observation_particle_size;
         }*/
         //std::cout<< "Free particle size" << free_particle_size << std::endl;
-        if(observation_particle_size < 0)
-        {
+        //if(observation_particle_size < 0)
+        //{
 	for (int i = 0; i < free_particle_size; i++)
 		model_->Free(copy[i]);
-        }
+        //}
         
         //std::cout << "Num active particles 3 :" << model_->NumActiveParticles() << std::endl;
         //std::cout<< "Valued action" << va << std::endl;
@@ -76,14 +77,14 @@ ValuedAction Policy::RecursiveValue(const vector<State*>& particles,
 		|| (history.Size() - initial_depth_
 			>= Globals::config.max_policy_sim_len)) {
             ValuedAction ans = particle_lower_bound_->Value(particles, obs_particle_size);
-            if(obs_particle_size > 0)
+            /*if(obs_particle_size > 0)
             {
                 for (int i = 0; i < particles.size(); i++)
                 {
                     model_->Free(particles[i]);
                 }
                     
-            }
+            }*/
             return ans;
             
             
@@ -93,21 +94,53 @@ ValuedAction Policy::RecursiveValue(const vector<State*>& particles,
                 if(action < 0)
                 {   
                    ValuedAction ans =  particle_lower_bound_->Value(particles, obs_particle_size);
-                    if(obs_particle_size > 0)
+                    /*if(obs_particle_size > 0)
                     {
                         for (int i = 0; i < particles.size(); i++)
                         {
                             model_->Free(particles[i]);
                         }
 
-                    }
+                    }*/
                     return ans;
                     //return particle_lower_bound_->Value(particles);
                 }
-                
-		double value = 0;
+                OBS_TYPE obs;
+		double reward;
+		
                 int observation_particle_size = obs_particle_size;
-                
+                if(Globals::config.track_alpha_vector)
+                {
+                    ValuedAction va = ValuedAction(action,0.0);
+                    va.value_array = new std::vector<double>(Globals::config.num_scenarios, 0);
+                    
+                    std::vector<State*> new_particles;
+                    for (int i = 0; i < particles.size(); i++) {
+                        State* particle = particles[i];
+			bool terminal = model_->Step(*particle,
+				streams.Entry(particle->scenario_id), action, reward, obs);
+                        (*va.value_array)[particle->scenario_id] += reward;
+                        if(!terminal)
+                        {
+                            new_particles.push_back(particle);
+                        }
+                        
+                    }
+                    history.Add(action, obs);
+                    streams.Advance();
+                    ValuedAction va1 = RecursiveValue(new_particles, streams, history, 1);
+                    for(int i = 0; i < new_particles.size(); i++)
+                    {
+                        State* particle = new_particles[i];
+                        (*va.value_array)[particle->scenario_id] += Globals::Discount() * (*va1.value_array)[particle->scenario_id];
+                        
+                    }
+                    va1.value_array->clear();
+                    delete va1.value_array;
+                    streams.Back();
+                    history.RemoveLast();
+                    return va;
+                }
                 
                 
                 std::map<OBS_TYPE, std::vector<State*> > partitions_belief_; //Stores belief particles
@@ -115,8 +148,7 @@ ValuedAction Policy::RecursiveValue(const vector<State*>& particles,
                 //map<OBS_TYPE, vector<double> > partitions_weight;
                 //map<OBS_TYPE, vector<double> > partitions_belief_weight;
                 
-		OBS_TYPE obs;
-		double reward;
+		double value = 0;
 		for (int i = 0; i < particles.size(); i++) {
 			State* particle = particles[i];
 			bool terminal = model_->Step(*particle,

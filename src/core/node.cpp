@@ -19,14 +19,42 @@ VNode::VNode(vector<State*>& particles, int depth, QNode* parent,
 	vstar(this),
 	likelihood(1),
         rnn_state(NULL),
-        rnn_output(NULL){
+        rnn_output(NULL),
+        extra_node(false){
 	logd << "Constructed vnode with " << particles_.size() << " particles"
 		<< endl;
 	for (int i = 0; i < particles_.size(); i++) {
 		logd << " " << i << " = " << *particles_[i] << endl;
 	}
         observation_particle_size = -1;
-}
+        if(Globals::config.track_alpha_vector)
+        {
+            particle_weights.resize(Globals::config.num_scenarios, 0);
+            for (int i = 0; i < particles_.size(); i++) {
+		particle_weights[particles_[i]->scenario_id] = particles_[i]->weight;
+	}
+           upper_bound_alpha_vector_.resize(Globals::config.num_scenarios, 0);
+           //lower_bound_alpha_vector.resize(Globals::config.num_scenarios, 0); 
+        }
+    }
+
+    VNode::VNode(int depth, QNode* parent, OBS_TYPE edge):
+    belief_(NULL),
+	depth_(depth),
+	parent_(parent),
+	edge_(edge),
+	vstar(this),
+	likelihood(1),
+        rnn_state(NULL),
+            rnn_output(NULL),
+            extra_node(false)
+    {
+        particle_weights.resize(Globals::config.num_scenarios, 0);
+        upper_bound_alpha_vector_.resize(Globals::config.num_scenarios, 0);
+        obs_probs.resize(Globals::config.num_scenarios, 0);
+        observation_particle_size = -1;
+    }
+
 
 VNode::VNode(Belief* belief, int depth, QNode* parent, OBS_TYPE edge) :
 	belief_(belief),
@@ -36,7 +64,8 @@ VNode::VNode(Belief* belief, int depth, QNode* parent, OBS_TYPE edge) :
 	vstar(this),
 	likelihood(1),
         rnn_state(NULL),
-        rnn_output(NULL){
+        rnn_output(NULL),
+        extra_node(false){
 }
 
 VNode::VNode(int count, double value, int depth, QNode* parent, OBS_TYPE edge) :
@@ -47,19 +76,26 @@ VNode::VNode(int count, double value, int depth, QNode* parent, OBS_TYPE edge) :
 	count_(count),
 	value_(value),
         rnn_state(NULL),
-        rnn_output(NULL){
+        rnn_output(NULL),
+        extra_node(false){
 }
 
-VNode::~VNode() {
+VNode::~VNode() { 
 	for (int a = 0; a < children_.size(); a++) {
 		QNode* child = children_[a];
 		assert(child != NULL);
 		delete child;
-	}
+	}  
 	children_.clear();
-
+        
+        particle_weights.clear();
+        upper_bound_alpha_vector_.clear();
+        lower_bound_alpha_vector_.clear();
+        
 	if (belief_ != NULL)
+        {
 		delete belief_;
+        }
         if(rnn_state !=NULL)
         {
             Py_DECREF(rnn_state);
@@ -75,8 +111,50 @@ Belief* VNode::belief() const {
 }
 
 const vector<State*>& VNode::particles() const {
-	return particles_;
+    if(Globals::config.track_alpha_vector)
+    {
+        if(parent_ != NULL)
+        {
+            return parent_->particles_;
+        }
+        else
+        {
+            return particles_;
+        }
+    }
+    else
+    {
+        return particles_;
+    }
 }
+
+    double VNode::calculate_lower_bound() const {
+        double lower_bound = 0;
+        //const std::vector<State*>& particles = this->particles();
+        //std::cout << "Lower bound alpha vector" << lower_bound_alpha_vector << std::endl;
+        //std::cout << "particle_weight_size" << particle_weights.size() << std::endl;
+        for(int i = 0; i < Globals::config.num_scenarios; i++)
+        {
+            //int particle_index = particles[i]->scenario_id;
+            lower_bound += particle_weights[i]*((*(lower_bound_alpha_vector.value_array))[i]);
+        }
+        //std::cout << "Lower bound is " << lower_bound << std::endl;
+        return lower_bound;
+    }
+    
+    double VNode::calculate_upper_bound() const {
+        double upper_bound = 0;
+        //const std::vector<State*>& particles = this->particles();
+        for(int i = 0; i < Globals::config.num_scenarios; i++)
+        {
+            //int particle_index = particles[i]->scenario_id;            
+            upper_bound += particle_weights[i]* ((*(upper_bound_alpha_vector.value_array))[i]);
+        }
+        //std::cout << "Calculating upper bound " << upper_bound << upper_bound_alpha_vector << std::endl;
+        return upper_bound;
+    }
+
+
 
 void VNode::depth(int d) {
 	depth_ = d;
@@ -99,7 +177,20 @@ OBS_TYPE VNode::edge() {
 }
 
 double VNode::Weight() const {
+    if(Globals::config.track_alpha_vector)
+    {
+        //Can simply return 1 as weight sums up to 1
+        double w = 0;
+        for(int i = 0 ; i < particle_weights.size(); i++)
+        {
+            w = w + particle_weights[i];
+        }
+        return w;
+    }
+    else
+    {
 	return State::Weight(particles_);
+    }
 }
 
 const vector<QNode*>& VNode::children() const {
@@ -189,9 +280,22 @@ void VNode::Free(const DSPOMDP& model) {
 	for (int i = 0; i < particles_.size(); i++) {
 		model.Free(particles_[i]);
 	}
+        if (default_move_.value_array != NULL)
+        {
+            //This one is always created using new
+           delete default_move_.value_array;
+        }
+        
+        /*if(lower_bound_alpha_vector.value_array != NULL)
+        {
+            lower_bound_alpha_vector.value_array->clear();
+        }*/
 
 	for (int a = 0; a < children().size(); a++) {
 		QNode* qnode = Child(a);
+                for (int i = 0; i < qnode->particles_.size(); i++) {
+                    model.Free(qnode->particles_[i]);
+                }
 		map<OBS_TYPE, VNode*>& children = qnode->children();
 		for (map<OBS_TYPE, VNode*>::iterator it = children.begin();
 			it != children.end(); it++) {
@@ -328,7 +432,9 @@ QNode::~QNode() {
 		delete it->second;
 	}
 	children_.clear();
-}
+        lower_bound_alpha_vector.clear();
+        upper_bound_alpha_vector.clear();
+    }
 
 void QNode::parent(VNode* parent) {
 	parent_ = parent;

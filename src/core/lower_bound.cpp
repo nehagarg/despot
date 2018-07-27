@@ -13,16 +13,42 @@ namespace despot {
 
 ValuedAction::ValuedAction() :
 	action(-1),
-	value(0) {
+	value(0),
+        value_array(NULL){
 }
 
 ValuedAction::ValuedAction(int _action, double _value) :
 	action(_action),
-	value(_value) {
+	value(_value),
+        value_array(NULL){
 }
 
+ValuedAction::ValuedAction(int _action, std::vector<double>* _value_array):
+action(_action),
+	value_array(_value_array),
+        value(0)
+{
+    
+}
+ValuedAction::~ValuedAction()
+{
+    /*if(value_array !=NULL)
+    {
+        std::cout << "Calling destructor \n";
+        value_array->clear();
+    }*/
+}
 ostream& operator<<(ostream& os, const ValuedAction& va) {
-	os << "(" << va.action << ", " << va.value << ")";
+	os << "(" << va.action << ", " << va.value << ", [";
+        if(va.value_array!=NULL)
+        {
+            for (int i = 0; i < va.value_array->size(); i++)
+            {
+                os << (*va.value_array)[i] << ", " ;
+            }
+        
+        }
+        os << "])" ;
 	return os;
 }
 
@@ -113,7 +139,17 @@ TrivialParticleLowerBound::TrivialParticleLowerBound(const DSPOMDP* model) :
 ValuedAction TrivialParticleLowerBound::Value(
 	const vector<State*>& particles,int observation_particle_size) const {
 	ValuedAction va = model_->GetMinRewardAction();
-	va.value *= State::Weight(particles) / (1 - Globals::Discount());
+        
+         
+        if(Globals::config.track_alpha_vector)
+        {
+            va.value_array = new std::vector<double>(Globals::config.num_scenarios, va.value/ (1 - Globals::Discount()));
+            //std::cout << "Lower bound returned" << va << std::endl;
+            return va;
+        }
+       
+	va.value *= State::Weight(particles)/ (1 - Globals::Discount()) ;
+        
         if(observation_particle_size > 0)
         {
             va.value *= observation_particle_size*1.0/Globals::config.num_scenarios;

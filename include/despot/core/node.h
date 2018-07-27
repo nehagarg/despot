@@ -42,11 +42,21 @@ public:
 	double likelihood; // Used in AEMS
 	double utility_upper_bound;
         int observation_particle_size; //Used in despot with belief tracking
+        std::vector<double> particle_weights; //used in despot with alpha function update
+        std::vector<double> obs_probs; //used in despot with alpha function update
+        std::vector<double> upper_bound_alpha_vector_; //used in despot with alpha function update to store default upper bound vector
+        std::vector<double> lower_bound_alpha_vector_; //used in despot with alpha function to store best sibling lower bound vector
+        ValuedAction lower_bound_alpha_vector; //used in despot with alpha function update
+        ValuedAction upper_bound_alpha_vector; //used in despot with alpha function update
+        bool extra_node; //used in despot with alpha function update
+        
         PyObject* rnn_state; //Used in DESPOTWITHDEFAULTLEARNEDPOLICY
         PyObject* rnn_output;//Used in DESPOTWITHDEFAULTLEARNEDPOLICY
 
 	VNode(std::vector<State*>& particles, int depth = 0, QNode* parent = NULL,
 		OBS_TYPE edge = -1);
+        VNode(int depth , QNode* parent ,
+		OBS_TYPE edge );
 	VNode(Belief* belief, int depth = 0, QNode* parent = NULL, OBS_TYPE edge =
 		-1);
 	VNode(int count, double value, int depth = 0, QNode* parent = NULL,
@@ -76,7 +86,9 @@ public:
 	double lower_bound() const;
 	void upper_bound(double value);
 	double upper_bound() const;
-
+        double calculate_upper_bound() const;
+        double calculate_lower_bound() const;
+        
 	bool IsLeaf();
 
 	void Add(double val);
@@ -114,13 +126,17 @@ public:
 	double default_value;
 	double utility_upper_bound;
 	double step_reward;
+        std::vector<double> step_reward_vector;
 	double likelihood;
 	VNode* vstar;
-
+        std::vector<State*> particles_; //Used for alpha function update algorithm
+        std::vector<double> upper_bound_alpha_vector; //used in despot with alpha function update
+        std::vector<double> lower_bound_alpha_vector; //used in despot with alpha function update
+        
 	QNode(VNode* parent, int edge);
 	QNode(int count, double value);
 	~QNode();
-
+        
 	void parent(VNode* parent);
 	VNode* parent();
 	int edge();
@@ -135,7 +151,9 @@ public:
 	double lower_bound() const;
 	void upper_bound(double value);
 	double upper_bound() const;
-
+        double calculate_upper_bound() const;
+        double calculate_lower_bound() const;
+        
 	void Add(double val);
 	void count(int c);
 	int count() const;

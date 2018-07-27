@@ -1,5 +1,6 @@
 #include <despot/solver/despot.h>
 #include <despot/solver/pomcp.h>
+#include <despot/solver/DespotWithAlphaFunctionUpdate.h>
 
 using namespace std;
 
@@ -192,7 +193,8 @@ VNode* DESPOT::ConstructTree(vector<State*>& particles, RandomStreams& streams,
                 //VNode* cur = Trial(root, streams, lower_bound, upper_bound, model, 
                 //        history, statistics);
 		used_time += double(clock() - start) / CLOCKS_PER_SEC;
-
+                //root->PrintTree();
+                //std::cout << "Backing up" << std::endl;
 		start = clock();
 		Backup(cur,o_helper);
                 //root->PrintTree();
@@ -260,10 +262,25 @@ void DESPOT::InitLowerBound(VNode* vnode, ScenarioLowerBound* lower_bound,
             obs_particle_size = o_helper->GetObservationParticleSize(vnode);
         }
         
-	ValuedAction move = lower_bound->Value(vnode->particles(), streams, history, obs_particle_size);
-	move.value *= Globals::Discount(vnode->depth());
-	vnode->default_move(move);
-	vnode->lower_bound(move.value);
+        //std::cout << "Lower bound " << vnode->lower_bound_alpha_vector << std::endl;
+        vnode->lower_bound_alpha_vector = lower_bound->Value(vnode->particles(), streams, history, obs_particle_size);
+        //std::cout << "Lower bound " << vnode->lower_bound_alpha_vector << std::endl;
+        
+        if(Globals::config.track_alpha_vector)
+        {
+            for(int i = 0; i < Globals::config.num_scenarios; i++)
+            {
+                (*(vnode->lower_bound_alpha_vector.value_array))[i] = (*(vnode->lower_bound_alpha_vector.value_array))[i] * Globals::Discount(vnode->depth());
+            }
+            vnode->lower_bound_alpha_vector.value = vnode->calculate_lower_bound();
+        }
+        else
+        {
+            vnode->lower_bound_alpha_vector.value *= Globals::Discount(vnode->depth());
+	}
+        vnode->default_move(vnode->lower_bound_alpha_vector);
+	vnode->lower_bound(vnode->lower_bound_alpha_vector.value);
+        
 }
 
 void DESPOT::InitUpperBound(VNode* vnode, ScenarioUpperBound* upper_bound,
@@ -275,10 +292,32 @@ void DESPOT::InitUpperBound(VNode* vnode, ScenarioUpperBound* upper_bound,
         {
             obs_particle_size = o_helper->GetObservationParticleSize(vnode);
         }
-	double upper = upper_bound->Value(vnode->particles(), streams, history, obs_particle_size);
-	vnode->utility_upper_bound = upper * Globals::Discount(vnode->depth());
-	upper = upper * Globals::Discount(vnode->depth()) - Globals::config.pruning_constant;
-	vnode->upper_bound(upper);
+	double upper;
+        if(Globals::config.track_alpha_vector)
+        {
+            
+            upper_bound->Value(vnode->particles(), streams, history, obs_particle_size, vnode->upper_bound_alpha_vector_);
+            for(int i = 0; i < Globals::config.num_scenarios; i++)
+            {
+                vnode->upper_bound_alpha_vector_[i] = vnode->upper_bound_alpha_vector_[i] * Globals::Discount(vnode->depth());
+            }
+            vnode->upper_bound_alpha_vector.value_array = (&(vnode->upper_bound_alpha_vector_));
+            upper = vnode->calculate_upper_bound();
+            
+            vnode->upper_bound_alpha_vector.value = upper;
+            
+        }
+        else
+        {
+            upper = upper_bound->Value(vnode->particles(), streams, history, obs_particle_size);
+            vnode->utility_upper_bound = upper * Globals::Discount(vnode->depth());
+            upper = upper * Globals::Discount(vnode->depth()) - Globals::config.pruning_constant;
+            
+        }
+        
+        vnode->upper_bound(upper);
+        
+	
 }
 
 void DESPOT::InitBounds(VNode* vnode, ScenarioLowerBound* lower_bound,
@@ -292,6 +331,7 @@ void DESPOT::InitBounds(VNode* vnode, ScenarioLowerBound* lower_bound,
 		// close gap because no more search can be done on leaf node
 		|| vnode->depth() == Globals::config.search_depth - 1) {
 		vnode->upper_bound(vnode->lower_bound());
+                vnode->upper_bound_alpha_vector = vnode->lower_bound_alpha_vector;
 	}
 }
 
@@ -573,11 +613,12 @@ double DESPOT::WEU(VNode* vnode, double xi) {
 	double ans =  Gap(vnode);
         double weight_factor = 1;
 
-        int obs_particle_size = vnode->observation_particle_size;
+        /*int obs_particle_size = vnode->observation_particle_size;
         if(obs_particle_size > 0)
         {
             weight_factor = obs_particle_size*1.0/Globals::config.num_scenarios;
-        }
+            //std::cout << "Weight_factor is" << weight_factor << std::endl;
+        }*/
         
         ans = ans - (xi * vnode->Weight() * Gap(root)*weight_factor);
         return ans;
@@ -631,8 +672,8 @@ void DESPOT::Update(VNode* vnode) {
 		lower = max(lower, qnode->lower_bound());
 		upper = max(upper, qnode->upper_bound());
 		utility_upper = max(utility_upper, qnode->utility_upper_bound);
-	}
-
+                    }
+                
 	if (lower > vnode->lower_bound()) {
 		vnode->lower_bound(lower);
 	}
@@ -649,17 +690,17 @@ void DESPOT::Update(QNode* qnode) {
 	double upper = qnode->step_reward;
 	double utility_upper = qnode->step_reward
 		+ Globals::config.pruning_constant;
-
+        
 	map<OBS_TYPE, VNode*>& children = qnode->children();
 	for (map<OBS_TYPE, VNode*>::iterator it = children.begin();
 		it != children.end(); it++) {
 		VNode* vnode = it->second;
-
+                
 		lower += vnode->lower_bound();
 		upper += vnode->upper_bound();
 		utility_upper += vnode->utility_upper_bound;
-	}
-
+                    }
+                
 	if (lower > qnode->lower_bound()) {
 		qnode->lower_bound(lower);
 	}
@@ -677,21 +718,37 @@ void DESPOT::Backup(VNode* vnode, DespotStaticFunctionOverrideHelper* o_helper) 
 	while (true) {
 		logd << " Iter " << iter << " " << vnode << endl;
 
-		Update(vnode);
-
+                if(Globals::config.track_alpha_vector)
+                {
+                    DespotWithAlphaFunctionUpdate::Update(vnode);
+                }
+                else
+                {
+                    DESPOT::Update(vnode);
+                }
 		QNode* parentq = vnode->parent();
 		if (parentq == NULL) {
 			break;
 		}
-
-                if(o_helper != NULL)
+               
+                if(Globals::config.track_alpha_vector)
                 {
-                    o_helper->Update(parentq);
+                    //UPDATE siblings
+                    map<OBS_TYPE, VNode*>& children = parentq->children();
+                    for (map<OBS_TYPE, VNode*>::iterator it = children.begin();
+		it != children.end(); it++) {
+                        if(it->first != vnode->edge())
+                        {
+                            DespotWithAlphaFunctionUpdate::UpdateSibling(vnode, it->second);
+                        }
+                    }
+                    DespotWithAlphaFunctionUpdate::Update(parentq);
                 }
                 else
                 {
-                  Update(parentq);  
+                    DESPOT::Update(parentq); 
                 }
+                
 		logd << " Updated Q-node to (" << parentq->lower_bound() << ", "
 			<< parentq->upper_bound() << ")" << endl;
 

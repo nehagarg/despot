@@ -29,6 +29,10 @@ public:
 
 	virtual double Value(const std::vector<State*>& particles,
 		RandomStreams& streams, History& history, int observation_particle_size) const = 0;
+        
+        virtual void Value(const std::vector<State*>& particles,
+		RandomStreams& streams, History& history, int observation_particle_size, 
+                std::vector<double>& alpha_vector_upper_bound) const = 0;
 };
 
 /* =============================================================================
@@ -48,6 +52,9 @@ public:
 
 	virtual double Value(const std::vector<State*>& particles,
 		RandomStreams& streams, History& history, int observation_particle_size) const;
+
+        virtual void Value(const std::vector<State*>& particles, RandomStreams& streams, History& history, int observation_particle_size, std::vector<double>& alpha_vector_upper_bound) const;
+
 };
 
 /* =============================================================================
@@ -65,6 +72,9 @@ public:
 
 	virtual double Value(const std::vector<State*>& particles,
 		RandomStreams& streams, History& history, int observation_particle_size) const;
+
+        virtual void Value(const std::vector<State*>& particles, RandomStreams& streams, History& history, int observation_particle_size, std::vector<double>& alpha_vector_upper_bound) const;
+
 };
 
 /* =============================================================================
@@ -86,6 +96,9 @@ public:
 
 	double Value(const std::vector<State*>& particles,
 		RandomStreams& streams, History& history, int observation_particle_size) const;
+
+        virtual void Value(const std::vector<State*>& particles, RandomStreams& streams, History& history, int observation_particle_size, std::vector<double>& alpha_vector_upper_bound) const;
+
 };
 
 /* =============================================================================
