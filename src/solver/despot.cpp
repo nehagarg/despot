@@ -737,8 +737,10 @@ void DESPOT::Backup(VNode* vnode, DespotStaticFunctionOverrideHelper* o_helper) 
                     map<OBS_TYPE, VNode*>& children = parentq->children();
                     for (map<OBS_TYPE, VNode*>::iterator it = children.begin();
 		it != children.end(); it++) {
+                        //std::cout << "Observation " << "Sibling " << it->first << " Own " << vnode->edge() << std::endl;
                         if(it->first != vnode->edge())
                         {
+                            //std::cout << "Updating sibling" << std::endl;
                             DespotWithAlphaFunctionUpdate::UpdateSibling(vnode, it->second);
                         }
                     }

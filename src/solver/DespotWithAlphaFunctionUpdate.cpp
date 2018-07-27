@@ -419,11 +419,14 @@ void DespotWithAlphaFunctionUpdate::Update(QNode* qnode) {
 }
 
     void DespotWithAlphaFunctionUpdate::UpdateSibling(VNode* vnode, VNode* sibling_node) {
-        if (sibling_node->IsLeaf()) {
+        /*if (sibling_node->IsLeaf()) {
 		return;
-	}
+	}*/
 
-	
+        if (DESPOT::Gap(sibling_node) <=0.0)
+            return;
+                
+	//std::cout << "Updating sibing ";
         double qnode_lower_bound = 0;
 	for (int i = 0; i < Globals::config.num_scenarios; i++)
             { 
@@ -432,7 +435,7 @@ void DespotWithAlphaFunctionUpdate::Update(QNode* qnode) {
                 
 
             }
-        
+        //std::cout << " new lower bound " << qnode_lower_bound << " Current lower bound " << sibling_node->lower_bound() << std::endl;
         if (qnode_lower_bound > sibling_node->lower_bound()) {
 		sibling_node->lower_bound(qnode_lower_bound);
                 sibling_node->lower_bound_alpha_vector.action = vnode->lower_bound_alpha_vector.action;
