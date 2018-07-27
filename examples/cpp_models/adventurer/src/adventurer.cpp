@@ -265,6 +265,98 @@ ParticleUpperBound* Adventurer::CreateParticleUpperBound(string name) const {
 	}
 }
 
+class GoRightUpperBound : public ParticleUpperBound {
+private:
+    const Adventurer* model_;
+public:
+        
+    GoRightUpperBound(const Adventurer* model) :
+    model_(model)
+    {
+        
+    }
+    
+
+        double Value(const State& state) const
+        {
+            //This should not be called
+            return -1;
+        }
+
+
+        void Value(const std::vector<State*>& particles, RandomStreams& streams, History& history, int observation_particle_size, std::vector<double>& alpha_vector_upper_bound) const
+        {
+             for (int i = 0; i < particles.size(); i++) {
+		State* particle = particles[i];
+		alpha_vector_upper_bound[particle->scenario_id] = Value(*particle, streams, history);
+                }
+        }
+        
+
+        double Value(const std::vector<State*>& particles, RandomStreams& streams, History& history, int observation_particle_size) const
+        {
+            double value = 0;
+            for (int i = 0; i < particles.size(); i++) {
+		State* particle = particles[i];
+		value += particle->weight * Value(*particle, streams, history);
+            }
+            if(observation_particle_size > 0)
+            {
+                value = value*observation_particle_size*1.0/Globals::config.num_scenarios;
+            }
+            return value;
+            
+            
+        }
+
+        
+
+        double Value(const State& state, RandomStreams& streams, History& history) const
+        {
+//2 is GO_RIGHT
+            
+            State* copy = model_->Copy(&state);
+            
+            int position = copy->state_id % model_->size_;
+	
+
+	
+            bool terminal = false;
+            int depth = history.Size();
+            OBS_TYPE obs;
+            double reward;
+            double tot_reward = 0;
+            int action;
+            while(!terminal)
+            {
+                
+                if (position == model_->size_ - 1 ) {
+                    action = model_->A_STAY;
+                }
+                else
+                {
+                    action = model_->A_RIGHT;
+                }
+                terminal = model_->Step(*copy, streams.Entry(copy->scenario_id, depth),action, reward, obs);
+                tot_reward+= reward;
+                depth = depth + 1;
+                position = copy->state_id % model_->size_;
+                if(depth == Globals::config.search_depth + 1)
+                {
+                    break;
+                }
+                //if(depth > Globals::config.)
+	
+            }
+            if (tot_reward < 0)
+            {
+                tot_reward = 0;
+            }
+            model_->Free(copy);
+            return tot_reward;
+        }
+
+};
 ScenarioUpperBound* Adventurer::CreateScenarioUpperBound(string name,
 	string particle_bound_name) const {
 	if (name == "TRIVIAL" || name == "DEFAULT") {
@@ -274,12 +366,19 @@ ScenarioUpperBound* Adventurer::CreateScenarioUpperBound(string name,
 	} else if (name == "LOOKAHEAD") {
 		return new LookaheadUpperBound(this, *this,
 			CreateParticleUpperBound(particle_bound_name));
-	} else {
+	} else if (name == "GORIGHT"){
+            //return new TrivialParticleUpperBound(this);
+            return new GoRightUpperBound(this);
+        }
+        
+        else
+        {
 		cerr << "Unsupported scenario upper bound: " << name << endl;
 		exit(1);
 		return NULL;
 	}
 }
+
 
 class AdventurerSmartPolicy: public Policy {
 private:

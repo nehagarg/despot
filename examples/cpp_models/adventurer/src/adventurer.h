@@ -31,6 +31,7 @@ class Adventurer: public BeliefMDP,
 	friend class AdventurerSmartPolicy;
 	friend class AdventurerPOMCPPrior;
 	friend class AdventurerState;
+        friend class GoRightUpperBound;
 
 protected:
 	int size_;
