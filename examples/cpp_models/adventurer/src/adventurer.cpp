@@ -341,7 +341,7 @@ public:
                 tot_reward+= reward;
                 depth = depth + 1;
                 position = copy->state_id % model_->size_;
-                if(depth == Globals::config.search_depth + 1)
+                if(depth == Globals::config.search_depth)
                 {
                     break;
                 }

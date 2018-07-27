@@ -385,6 +385,42 @@ public:
 	}
 };
 
+
+class DangerTagSPParticleUpperBound: public ParticleUpperBound { // Shortest path
+protected:
+	const BaseTag* tag_model_;
+	vector<double> value_;
+public:
+	DangerTagSPParticleUpperBound(const BaseTag* model) :
+		tag_model_(model) {
+		Floor floor = tag_model_->floor_;
+		value_.resize(tag_model_->NumStates());
+		for (int s = 0; s < tag_model_->NumStates(); s++) {
+			int rob = tag_model_->rob_[s], opp = tag_model_->opp_[s];
+                        Coord rob_pos = floor.GetCell(rob);
+                        Coord opp_pos = floor.GetCell(opp);
+                        Coord diff = Coord(rob_pos.x - opp_pos.x, rob_pos.y - opp_pos.y);
+                        if(diff.x < 0)
+                        {
+                            diff.x = -1*diff.x;
+                        }
+                        if(diff.y < 0)
+                        {
+                            diff.y = -1*diff.y;
+                        }
+                        int dist = max(diff.x, diff.y);
+			//int dist = (int) floor.Distance(rob, opp);
+			value_[s] = -(1 - Globals::Discount(dist)) / (1 - Globals::Discount())
+				+ tag_model_->TAG_REWARD * Globals::Discount(dist);
+		}
+	}
+
+	double Value(const State& s) const {
+		const TagState& state = static_cast<const TagState&>(s);
+
+		return value_[state.state_id];
+	}
+};
 /* ==============================================================================
  * TagSPParticleUpperBound class
  * ==============================================================================*/
@@ -773,6 +809,9 @@ ParticleUpperBound* BaseTag::CreateParticleUpperBound(string name) const {
 		return new TagSPParticleUpperBound(this);
 	} else if (name == "MANHATTAN") {
 		return new TagManhattanUpperBound(this);
+        } else if (name == "DANGERSP")
+        {
+            return new DangerTagSPParticleUpperBound(this);
 	} else {
 		if (name != "print")
 			cerr << "Unsupported particle lower bound: " << name << endl;
@@ -785,7 +824,7 @@ ParticleUpperBound* BaseTag::CreateParticleUpperBound(string name) const {
 ScenarioUpperBound* BaseTag::CreateScenarioUpperBound(string name,
 	string particle_bound_name) const {
 	if (name == "TRIVIAL" || name == "DEFAULT" || name == "MDP" ||
-			name == "SP" || name == "MANHATTAN") {
+			name == "SP" || name == "MANHATTAN" || name == "DANGERSP") {
 		return CreateParticleUpperBound(name);
 	} else if (name == "LOOKAHEAD") {
 		return new LookaheadUpperBound(this, *this,

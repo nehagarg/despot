@@ -36,6 +36,7 @@ class BaseTag: public MDP,
 	friend class TagPOMCPPrior;
 	friend class TagHistoryModePolicy;
         friend class DangerTagPolicy;
+        friend class DangerTagSPParticleUpperBound;
 
 protected:
 	static double TAG_REWARD;
@@ -111,6 +112,9 @@ public:
 	}
 	inline Coord GetRobPos(const State* state) const {
 		return floor_.GetCell(rob_[state->state_id]);
+	}
+        inline Coord GetOppPos(const State* state) const {
+		return floor_.GetCell(opp_[state->state_id]);
 	}
 	inline int StateIndexToOppIndex(int index) const {
 		return index % floor_.NumCells();
