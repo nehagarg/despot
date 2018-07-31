@@ -33,7 +33,7 @@ VNode::VNode(vector<State*>& particles, int depth, QNode* parent,
             for (int i = 0; i < particles_.size(); i++) {
 		particle_weights[particles_[i]->scenario_id] = particles_[i]->weight;
 	}
-           upper_bound_alpha_vector_.resize(Globals::config.num_scenarios, 0);
+           //upper_bound_alpha_vector_.resize(Globals::config.num_scenarios, 0);
            //lower_bound_alpha_vector.resize(Globals::config.num_scenarios, 0); 
         }
     }
@@ -50,7 +50,7 @@ VNode::VNode(vector<State*>& particles, int depth, QNode* parent,
             extra_node(false)
     {
         particle_weights.resize(Globals::config.num_scenarios, 0);
-        upper_bound_alpha_vector_.resize(Globals::config.num_scenarios, 0);
+        //upper_bound_alpha_vector_.resize(Globals::config.num_scenarios, 0);
         obs_probs.resize(Globals::config.num_scenarios, 0);
         observation_particle_size = -1;
     }
@@ -180,6 +180,7 @@ double VNode::Weight() const {
     if(Globals::config.track_alpha_vector)
     {
         //Can simply return 1 as weight sums up to 1
+        return 1.0;
         double w = 0;
         for(int i = 0 ; i < particle_weights.size(); i++)
         {
@@ -280,12 +281,14 @@ void VNode::Free(const DSPOMDP& model) {
 	for (int i = 0; i < particles_.size(); i++) {
 		model.Free(particles_[i]);
 	}
-        if (default_move_.value_array != NULL)
+        if(parent_ == NULL)
         {
-            //This one is always created using new
-           delete default_move_.value_array;
+            if (default_move_.value_array != NULL)
+                {
+                    //This one is always created using new
+                    delete default_move_.value_array;
+                }
         }
-        
         /*if(lower_bound_alpha_vector.value_array != NULL)
         {
             lower_bound_alpha_vector.value_array->clear();
@@ -295,6 +298,11 @@ void VNode::Free(const DSPOMDP& model) {
 		QNode* qnode = Child(a);
                 for (int i = 0; i < qnode->particles_.size(); i++) {
                     model.Free(qnode->particles_[i]);
+                }
+                if (qnode->default_move.value_array != NULL)
+                {
+                    //This one is always created using new
+                    delete qnode->default_move.value_array;
                 }
 		map<OBS_TYPE, VNode*>& children = qnode->children();
 		for (map<OBS_TYPE, VNode*>::iterator it = children.begin();
@@ -434,6 +442,7 @@ QNode::~QNode() {
 	children_.clear();
         lower_bound_alpha_vector.clear();
         upper_bound_alpha_vector.clear();
+        default_upper_bound_alpha_vector.clear();
     }
 
 void QNode::parent(VNode* parent) {

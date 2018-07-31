@@ -91,6 +91,8 @@ namespace despot {
                 children[Globals::RESIDUAL_OBS] = residual_vnode;
             residual_vnode->observation_particle_size = 1; //Not used anywhere probably
             residual_vnode->extra_node = true;
+            
+            
         }
         
 	step_reward = Globals::Discount(parent->depth()) * step_reward*node_factor
@@ -336,11 +338,11 @@ void DespotWithAlphaFunctionUpdate::Update(QNode* qnode) {
 	//	+ Globals::config.pruning_constant;
         
         
-        std::vector<double> obs_probablity_sum;
+        //std::vector<double> obs_probablity_sum;
 
         
             
-        obs_probablity_sum.resize(Globals::config.num_scenarios,0);
+        //obs_probablity_sum.resize(Globals::config.num_scenarios,0);
         
         std::vector<double> lower_bound_vector;
         std::vector<double> upper_bound_vector;
@@ -363,7 +365,7 @@ void DespotWithAlphaFunctionUpdate::Update(QNode* qnode) {
                                  (*vnode->lower_bound_alpha_vector.value_array)[i];
                         upper_bound_vector[i] += vnode->obs_probs[i]*(*vnode->upper_bound_alpha_vector.value_array)[i];
                         
-                        obs_probablity_sum[i] = obs_probablity_sum[i] + vnode->obs_probs[i];
+                        //obs_probablity_sum[i] = obs_probablity_sum[i] + vnode->obs_probs[i];
                         //std::cout << "Scenario " << i << " " << lower_bound_vector[i]  << "," << upper_bound_vector[i] << std::endl;
                         
                     }
@@ -381,18 +383,18 @@ void DespotWithAlphaFunctionUpdate::Update(QNode* qnode) {
                 
                  //lower_bound_vector[i] = (lower_bound_vector[i]) + qnode->step_reward_vector[i];
                 //upper_bound_vector[i] = (upper_bound_vector[i]) + qnode->step_reward_vector[i];
-                if(obs_probablity_sum[i] > 0)
-                {
+                //if(obs_probablity_sum[i] > 0)
+                //{
                    // std::cout << i << " " << obs_probablity_sum[i] << std::endl;
                 //int particle_index = qnode->particles_[i]->scenario_id;
-                lower_bound_vector[i] = (lower_bound_vector[i]/obs_probablity_sum[i]) + qnode->step_reward_vector[i];
-                upper_bound_vector[i] = (upper_bound_vector[i]/obs_probablity_sum[i]) + qnode->step_reward_vector[i];
-                }
-                else
-                {
-                   lower_bound_vector[i] =  qnode->step_reward_vector[i];
-                upper_bound_vector[i] =  qnode->step_reward_vector[i]; 
-                }
+                lower_bound_vector[i] = lower_bound_vector[i] + qnode->step_reward_vector[i];
+                upper_bound_vector[i] = upper_bound_vector[i] + qnode->step_reward_vector[i];
+                //}
+                //else
+                //{
+                //   lower_bound_vector[i] =  qnode->step_reward_vector[i];
+                //upper_bound_vector[i] =  qnode->step_reward_vector[i]; 
+               // }
                 
                 
                 lower += qnode->parent()->particle_weights[i]*lower_bound_vector[i];

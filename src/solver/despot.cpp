@@ -263,19 +263,37 @@ void DESPOT::InitLowerBound(VNode* vnode, ScenarioLowerBound* lower_bound,
         }
         
         //std::cout << "Lower bound " << vnode->lower_bound_alpha_vector << std::endl;
-        vnode->lower_bound_alpha_vector = lower_bound->Value(vnode->particles(), streams, history, obs_particle_size);
+       
         //std::cout << "Lower bound " << vnode->lower_bound_alpha_vector << std::endl;
         
         if(Globals::config.track_alpha_vector)
         {
-            for(int i = 0; i < Globals::config.num_scenarios; i++)
+            if(vnode->parent() == NULL)
+            {
+                vnode->lower_bound_alpha_vector = lower_bound->Value(vnode->particles(), streams, history, obs_particle_size);
+                for(int i = 0; i < Globals::config.num_scenarios; i++)
             {
                 (*(vnode->lower_bound_alpha_vector.value_array))[i] = (*(vnode->lower_bound_alpha_vector.value_array))[i] * Globals::Discount(vnode->depth());
             }
+            }
+            else
+            {
+                if(vnode->parent()->default_move.value_array == NULL)
+                {
+                    vnode->parent()->default_move = lower_bound->Value(vnode->particles(), streams, history, obs_particle_size);
+                    for(int i = 0; i < Globals::config.num_scenarios; i++)
+                    {
+                        (*(vnode->parent()->default_move.value_array))[i] = (*(vnode->parent()->default_move.value_array))[i] * Globals::Discount(vnode->depth());
+                    }
+                }
+                vnode->lower_bound_alpha_vector = vnode->parent()->default_move;
+            }
+            
             vnode->lower_bound_alpha_vector.value = vnode->calculate_lower_bound();
         }
         else
         {
+             vnode->lower_bound_alpha_vector = lower_bound->Value(vnode->particles(), streams, history, obs_particle_size);
             vnode->lower_bound_alpha_vector.value *= Globals::Discount(vnode->depth());
 	}
         vnode->default_move(vnode->lower_bound_alpha_vector);
@@ -295,13 +313,35 @@ void DESPOT::InitUpperBound(VNode* vnode, ScenarioUpperBound* upper_bound,
 	double upper;
         if(Globals::config.track_alpha_vector)
         {
-            
-            upper_bound->Value(vnode->particles(), streams, history, obs_particle_size, vnode->upper_bound_alpha_vector_);
-            for(int i = 0; i < Globals::config.num_scenarios; i++)
+            if(vnode->parent() == NULL)
             {
-                vnode->upper_bound_alpha_vector_[i] = vnode->upper_bound_alpha_vector_[i] * Globals::Discount(vnode->depth());
+                if(vnode->upper_bound_alpha_vector_.size() == 0)
+                {
+             vnode->upper_bound_alpha_vector_.resize(Globals::config.num_scenarios, 0);   
+            upper_bound->Value(vnode->particles(), streams, history, obs_particle_size, vnode->upper_bound_alpha_vector_);
+                
+                    for(int i = 0; i < Globals::config.num_scenarios; i++)
+                {
+                    vnode->upper_bound_alpha_vector_[i] = vnode->upper_bound_alpha_vector_[i] * Globals::Discount(vnode->depth());
+                }
+                
             }
-            vnode->upper_bound_alpha_vector.value_array = (&(vnode->upper_bound_alpha_vector_));
+                vnode->upper_bound_alpha_vector.value_array = (&(vnode->upper_bound_alpha_vector_));
+            }
+            else
+            {
+                if(vnode->parent()->default_upper_bound_alpha_vector.size() == 0)
+                {
+                   vnode->parent()->default_upper_bound_alpha_vector.resize(Globals::config.num_scenarios, 0);   
+            upper_bound->Value(vnode->particles(), streams, history, obs_particle_size, vnode->parent()->default_upper_bound_alpha_vector); 
+             for(int i = 0; i < Globals::config.num_scenarios; i++)
+                {
+                    vnode->parent()->default_upper_bound_alpha_vector[i] = vnode->parent()->default_upper_bound_alpha_vector[i] * Globals::Discount(vnode->depth());
+                }
+                }
+                vnode->upper_bound_alpha_vector.value_array = (&(vnode->parent()->default_upper_bound_alpha_vector));
+            }
+            
             upper = vnode->calculate_upper_bound();
             
             vnode->upper_bound_alpha_vector.value = upper;

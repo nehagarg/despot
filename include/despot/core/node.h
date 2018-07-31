@@ -44,7 +44,7 @@ public:
         int observation_particle_size; //Used in despot with belief tracking
         std::vector<double> particle_weights; //used in despot with alpha function update
         std::vector<double> obs_probs; //used in despot with alpha function update
-        std::vector<double> upper_bound_alpha_vector_; //used in despot with alpha function update to store default upper bound vector
+        std::vector<double> upper_bound_alpha_vector_; //used in despot with alpha function update to store default upper bound vector for root node
         std::vector<double> lower_bound_alpha_vector_; //used in despot with alpha function to store best sibling lower bound vector
         ValuedAction lower_bound_alpha_vector; //used in despot with alpha function update
         ValuedAction upper_bound_alpha_vector; //used in despot with alpha function update
@@ -132,6 +132,8 @@ public:
         std::vector<State*> particles_; //Used for alpha function update algorithm
         std::vector<double> upper_bound_alpha_vector; //used in despot with alpha function update
         std::vector<double> lower_bound_alpha_vector; //used in despot with alpha function update
+        std::vector<double> default_upper_bound_alpha_vector;
+        ValuedAction default_move;
         
 	QNode(VNode* parent, int edge);
 	QNode(int count, double value);
