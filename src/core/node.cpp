@@ -20,8 +20,10 @@ VNode::VNode(vector<State*>& particles, int depth, QNode* parent,
 	likelihood(1),
         rnn_state(NULL),
         rnn_output(NULL),
-        extra_node(false){
-	logd << "Constructed vnode with " << particles_.size() << " particles"
+        extra_node(false),
+        common_parent_(NULL),
+        obs_probs_holder(NULL){
+    logd << "Constructed vnode with " << particles_.size() << " particles"
 		<< endl;
 	for (int i = 0; i < particles_.size(); i++) {
 		logd << " " << i << " = " << *particles_[i] << endl;
@@ -29,13 +31,19 @@ VNode::VNode(vector<State*>& particles, int depth, QNode* parent,
         observation_particle_size = -1;
         if(Globals::config.track_alpha_vector)
         {
+            common_parent_ = new QNode(particles);
             particle_weights.resize(Globals::config.num_scenarios, 0);
             for (int i = 0; i < particles_.size(); i++) {
 		particle_weights[particles_[i]->scenario_id] = particles_[i]->weight;
 	}
+            
            //upper_bound_alpha_vector_.resize(Globals::config.num_scenarios, 0);
            //lower_bound_alpha_vector.resize(Globals::config.num_scenarios, 0); 
         }
+        else
+            {
+                common_parent_ = NULL;
+            }
     }
 
     VNode::VNode(int depth, QNode* parent, OBS_TYPE edge):
@@ -47,12 +55,17 @@ VNode::VNode(vector<State*>& particles, int depth, QNode* parent,
 	likelihood(1),
         rnn_state(NULL),
             rnn_output(NULL),
-            extra_node(false)
+            extra_node(false),
+            obs_probs_holder(NULL)
     {
         particle_weights.resize(Globals::config.num_scenarios, 0);
         //upper_bound_alpha_vector_.resize(Globals::config.num_scenarios, 0);
-        obs_probs.resize(Globals::config.num_scenarios, 0);
+        //obs_probs.resize(Globals::config.num_scenarios, 0);
         observation_particle_size = -1;
+    }
+    VNode::VNode(int depth, QNode* parent, QNode* common_parent, OBS_TYPE edge):
+    VNode(depth, parent, edge){
+        common_parent_ = common_parent;
     }
 
 
@@ -85,11 +98,17 @@ VNode::~VNode() {
 		QNode* child = children_[a];
 		assert(child != NULL);
 		delete child;
-	}  
+                }
 	children_.clear();
-        
+        if(Globals::config.track_alpha_vector)
+        {
+        if(common_parent_->parent() == NULL)
+        {
+            FreeCommonParent(common_parent_);
+        }
+        }
         particle_weights.clear();
-        upper_bound_alpha_vector_.clear();
+        //upper_bound_alpha_vector_.clear();
         lower_bound_alpha_vector_.clear();
         
 	if (belief_ != NULL)
@@ -113,14 +132,7 @@ Belief* VNode::belief() const {
 const vector<State*>& VNode::particles() const {
     if(Globals::config.track_alpha_vector)
     {
-        if(parent_ != NULL)
-        {
-            return parent_->particles_;
-        }
-        else
-        {
-            return particles_;
-        }
+        return common_parent_->particles_;
     }
     else
     {
@@ -135,6 +147,7 @@ const vector<State*>& VNode::particles() const {
         //std::cout << "particle_weight_size" << particle_weights.size() << std::endl;
         for(int i = 0; i < Globals::config.num_scenarios; i++)
         {
+          //  std::cout << "Particle_weight " << particle_weights[i];
             //int particle_index = particles[i]->scenario_id;
             lower_bound += particle_weights[i]*((*(lower_bound_alpha_vector.value_array))[i]);
         }
@@ -147,6 +160,7 @@ const vector<State*>& VNode::particles() const {
         //const std::vector<State*>& particles = this->particles();
         for(int i = 0; i < Globals::config.num_scenarios; i++)
         {
+          //  std::cout << "Particle_weight " << particle_weights[i];
             //int particle_index = particles[i]->scenario_id;            
             upper_bound += particle_weights[i]* ((*(upper_bound_alpha_vector.value_array))[i]);
         }
@@ -208,7 +222,35 @@ const QNode* VNode::Child(int action) const {
 
 QNode* VNode::Child(int action) {
 	return children_[action];
-}
+    }
+
+void VNode::CreateCommonQNode(int action) {
+    int common_children_size = common_parent_->common_children_.size();
+    if(common_children_size==action)
+    {
+        QNode* common_qnode = new QNode(this, action);
+        common_parent_->common_children_.push_back(common_qnode);
+    }
+    else
+    {
+        //assert(common_children_size == num_actions);
+    }
+    }
+
+    QNode* VNode::common_parent() {
+        return common_parent_;
+    }
+
+
+    const QNode* VNode::CommonChild(int action) const {
+        return common_parent_->common_children_[action];
+    }
+
+    QNode* VNode::CommonChild(int action) {
+        return common_parent_->common_children_[action];
+    }
+    
+
 
 int VNode::Size() const {
 	int size = 1;
@@ -276,18 +318,32 @@ void VNode::value(double v) {
 double VNode::value() const {
 	return value_;
 }
-
+void VNode::FreeCommonParent(QNode* p)
+{
+    if(p->common_children_.size() == 0)
+    {
+        delete p;
+    }
+    else
+    {
+        for (int a = 0; a < p->common_children_.size(); a++)
+        {
+            FreeCommonParent(p->common_children_[a]);
+        }
+        delete p;
+    }
+}
 void VNode::Free(const DSPOMDP& model) {
 	for (int i = 0; i < particles_.size(); i++) {
 		model.Free(particles_[i]);
 	}
-        if(parent_ == NULL)
+        if(Globals::config.track_alpha_vector)
         {
-            if (default_move_.value_array != NULL)
-                {
-                    //This one is always created using new
-                    delete default_move_.value_array;
-                }
+        if(common_parent_->default_move.value_array != NULL)
+        {
+            delete common_parent_->default_move.value_array;
+            common_parent_->default_move.value_array = NULL;
+        }
         }
         /*if(lower_bound_alpha_vector.value_array != NULL)
         {
@@ -310,6 +366,8 @@ void VNode::Free(const DSPOMDP& model) {
 			it->second->Free(model);
 		}
 	}
+        
+        
 }
 
 void VNode::PrintPolicyTree(int depth, ostream& os) {
@@ -428,6 +486,11 @@ QNode::QNode(VNode* parent, int edge) :
 	vstar(NULL) {
 }
 
+QNode::QNode(std::vector<State*>& particles):
+particles_(particles), parent_(NULL)
+{
+    
+}
 QNode::QNode(int count, double value) :
 	count_(count),
 	value_(value) {

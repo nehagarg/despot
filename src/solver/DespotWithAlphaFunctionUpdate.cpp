@@ -23,6 +23,9 @@ namespace despot {
     {
         //std::cout << "Expanding in Despot With Alpha function update" << std::endl;
         VNode* parent = qnode->parent();
+        QNode* common_qnode = parent->CommonChild(qnode->edge());
+        QNode* populated_qnode = NULL;
+        
 	streams.position(parent->depth());
 	std::map<OBS_TYPE, VNode*>& children = qnode->children();
 
@@ -39,43 +42,50 @@ namespace despot {
         
 	OBS_TYPE obs;
 	double reward;
-        qnode->step_reward_vector.resize(Globals::config.num_scenarios,0);
-        qnode->lower_bound_alpha_vector.resize(Globals::config.num_scenarios,0);
-        qnode->upper_bound_alpha_vector.resize(Globals::config.num_scenarios,0);
-        double node_factor = 1.0; //observation_particle_size/Globals::config.num_scenarios; 
         
-        int  num_particles_pushed = 0;
-	for (int i = 0; i < particles.size(); i++) {
-            State* particle = particles[i];
-            logd << " Original: " << *particle << std::endl;
+        if(common_qnode->step_reward_vector.size() == 0)
+        {
+            common_qnode->step_reward_vector.resize(Globals::config.num_scenarios,0);
+            double node_factor = 1.0; //observation_particle_size/Globals::config.num_scenarios; 
+            
 
-            State* copy = model->Copy(particle);
+            int  num_particles_pushed = 0;
+            for (int i = 0; i < particles.size(); i++) {
+                State* particle = particles[i];
+                logd << " Original: " << *particle << std::endl;
 
-            logd << " Before step: " << *copy << std::endl;
+                State* copy = model->Copy(particle);
 
-            bool terminal = model->Step(*copy, streams.Entry(copy->scenario_id),
-                    qnode->edge(), reward, obs);
-            qnode->step_reward_vector[particle->scenario_id] = Globals::Discount(parent->depth())*reward *node_factor;
-            //qnode->lower_bound_alpha_vector[particle->scenario_id] = qnode->step_reward_vector[particle->scenario_id];
-            //qnode->upper_bound_alpha_vector[particle->scenario_id] = qnode->step_reward_vector[particle->scenario_id];
-            step_reward += reward * parent->particle_weights[particle->scenario_id];
+                logd << " Before step: " << *copy << std::endl;
 
-            logd << " After step: " << *copy << " " << (reward * parent->particle_weights[particle->scenario_id])
-                    << " " << reward << " " << parent->particle_weights[particle->scenario_id] << std::endl;
+                bool terminal = model->Step(*copy, streams.Entry(copy->scenario_id),
+                        qnode->edge(), reward, obs);
+                common_qnode->step_reward_vector[particle->scenario_id] = Globals::Discount(parent->depth())*reward *node_factor;
+                //qnode->lower_bound_alpha_vector[particle->scenario_id] = qnode->step_reward_vector[particle->scenario_id];
+                //qnode->upper_bound_alpha_vector[particle->scenario_id] = qnode->step_reward_vector[particle->scenario_id];
+                step_reward += reward * parent->particle_weights[particle->scenario_id];
 
-            if (!terminal) {
+                logd << " After step: " << *copy << " " << (reward * parent->particle_weights[particle->scenario_id])
+                        << " " << reward << " " << parent->particle_weights[particle->scenario_id] << std::endl;
 
-                qnode->particles_.push_back(copy);
-                num_particles_pushed++;
-                partitions[obs].push_back(particle->scenario_id);
+                if (!terminal) {
+
+                    common_qnode->particles_.push_back(copy);
+                    num_particles_pushed++;
+                    partitions[obs].push_back(particle->scenario_id);
+                    }
+
+                else {
+                        model->Free(copy);
                 }
 
-            else {
-                    model->Free(copy);
-            }
-                
                
-	}
+            }
+            step_reward = Globals::Discount(parent->depth()) * step_reward*node_factor
+		- Globals::config.pruning_constant;//pruning_constant is used for regularization
+        
+            common_qnode->step_reward = step_reward;
+        
         
         /*std::vector<double> residual_obs_prob;
         if(qnode->particles_.size() > 0)
@@ -84,20 +94,20 @@ namespace despot {
             partitions[Globals::RESIDUAL_OBS].push_back(0);
         }*/
         VNode* residual_vnode;
-        if(qnode->particles_.size() > 0)
+        if(common_qnode->particles_.size() > 0)
         {
             residual_vnode = new VNode(parent->depth() + 1,
-			qnode, Globals::RESIDUAL_OBS);
+			qnode, common_qnode, Globals::RESIDUAL_OBS);
                 children[Globals::RESIDUAL_OBS] = residual_vnode;
             residual_vnode->observation_particle_size = 1; //Not used anywhere probably
             residual_vnode->extra_node = true;
+            residual_vnode->obs_probs_holder = residual_vnode;
+            residual_vnode->obs_probs.resize(Globals::config.num_scenarios, 0);
             
             
         }
         
-	step_reward = Globals::Discount(parent->depth()) * step_reward*node_factor
-		- Globals::config.pruning_constant;//pruning_constant is used for regularization
-        
+	
         //std::cout << "Step reward = " << step_reward << std::endl;
 	//double lower_bound = step_reward;
 	//double upper_bound = step_reward;
@@ -113,44 +123,47 @@ namespace despot {
                 int observation_particle_size_ = partitions[obs].size();
                 
                 VNode* vnode = new VNode(parent->depth() + 1,
-			qnode, obs);
+			qnode, common_qnode, obs);
                 vnode->observation_particle_size = observation_particle_size_;
+                vnode->obs_probs.resize(Globals::config.num_scenarios, 0);
 		logd << " New node created!" << std::endl;
 		children[obs] = vnode;
+                vnode->obs_probs_holder = vnode;
                 
                 if(obs == Globals::RESIDUAL_OBS)
                 {
                     vnode->extra_node = true;
                 }
 		double total_weight = 0;
-                for(int i = 0; i < qnode->particles_.size();i++)
+                for(int i = 0; i < common_qnode->particles_.size();i++)
                 {
                     double prob;
-                    prob = model->ObsProb(obs, *qnode->particles_[i], qnode->edge());
+                    //int scenario_id = common_qnode->particles_[i]->scenario_id;
+                    prob = model->ObsProb(obs, *common_qnode->particles_[i], qnode->edge());
                 
                     
-                    //std::cout << "Obs Prob: " <<  prob << " ";
+                   // std::cout << "Obs Prob: for obs " <<  obs << " " << prob << " ";
                 
 		 // Terminal state is not required to be explicitly represented and may not have any observation
-			vnode->particle_weights[qnode->particles_[i]->scenario_id] = parent->particle_weights[qnode->particles_[i]->scenario_id]* prob;
-			total_weight += vnode->particle_weights[qnode->particles_[i]->scenario_id];
+			vnode->particle_weights[common_qnode->particles_[i]->scenario_id] = parent->particle_weights[common_qnode->particles_[i]->scenario_id]* prob;
+			total_weight += vnode->particle_weights[common_qnode->particles_[i]->scenario_id];
                         //Total weight should not be zero as one particle actually produced that observation
-                        vnode->obs_probs[qnode->particles_[i]->scenario_id] = prob;
+                        vnode->obs_probs[common_qnode->particles_[i]->scenario_id] = prob;
                         
-                        residual_vnode->obs_probs[qnode->particles_[i]->scenario_id] =  residual_vnode->obs_probs[qnode->particles_[i]->scenario_id]+ prob;
-                        if(residual_vnode->obs_probs[qnode->particles_[i]->scenario_id] > max_prob_sum)
+                        residual_vnode->obs_probs[common_qnode->particles_[i]->scenario_id] =  residual_vnode->obs_probs[common_qnode->particles_[i]->scenario_id]+ prob;
+                        if(residual_vnode->obs_probs[common_qnode->particles_[i]->scenario_id] > max_prob_sum)
                         {
-                            max_prob_sum = residual_vnode->obs_probs[qnode->particles_[i]->scenario_id];
+                            max_prob_sum = residual_vnode->obs_probs[common_qnode->particles_[i]->scenario_id];
                         }
                         
                         
                 }
                 //std::cout << "Max prob sum " << max_prob_sum << std::endl;
-                for(int i = 0; i < qnode->particles_.size(); i++)
+                for(int i = 0; i < common_qnode->particles_.size(); i++)
                 {
                     if(total_weight > 0) //total weight might be zero if particle weight is zero
                     {
-                    vnode->particle_weights[qnode->particles_[i]->scenario_id] = vnode->particle_weights[qnode->particles_[i]->scenario_id]/total_weight;
+                    vnode->particle_weights[common_qnode->particles_[i]->scenario_id] = vnode->particle_weights[common_qnode->particles_[i]->scenario_id]/total_weight;
                     }
                     
                     
@@ -177,40 +190,40 @@ namespace despot {
 		VNode* vnode = it->second;
                 if(!vnode->extra_node)
                 {
-            for(int i = 0; i < qnode->particles_.size();i++)
+            for(int i = 0; i < common_qnode->particles_.size();i++)
             {    
-                vnode->obs_probs[qnode->particles_[i]->scenario_id] = vnode->obs_probs[qnode->particles_[i]->scenario_id]/max_prob_sum;
+                vnode->obs_probs[common_qnode->particles_[i]->scenario_id] = vnode->obs_probs[common_qnode->particles_[i]->scenario_id]/max_prob_sum;
             }
             }
         }
         //Residual node
-        if(qnode->particles_.size() > 0)
+        if(common_qnode->particles_.size() > 0)
         {
             double total_weight = 0;
-                for(int i = 0; i < qnode->particles_.size();i++)
+                for(int i = 0; i < common_qnode->particles_.size();i++)
                 {
-                    double prob = 1 - (residual_vnode->obs_probs[qnode->particles_[i]->scenario_id]/max_prob_sum);
+                    double prob = 1 - (residual_vnode->obs_probs[common_qnode->particles_[i]->scenario_id]/max_prob_sum);
                     
                 
                     
-                   // std::cout << "Obs Prob: " <<  prob << " ";
+                    //std::cout << "Obs Prob: res" <<  prob << " ";
                 
 		 // Terminal state is not required to be explicitly represented and may not have any observation
-			residual_vnode->particle_weights[qnode->particles_[i]->scenario_id] = parent->particle_weights[qnode->particles_[i]->scenario_id]* prob;
-			total_weight += residual_vnode->particle_weights[qnode->particles_[i]->scenario_id];
+			residual_vnode->particle_weights[common_qnode->particles_[i]->scenario_id] = parent->particle_weights[common_qnode->particles_[i]->scenario_id]* prob;
+			total_weight += residual_vnode->particle_weights[common_qnode->particles_[i]->scenario_id];
                         //Total weight should not be zero as one particle actually produced that observation
-                        residual_vnode->obs_probs[qnode->particles_[i]->scenario_id] = prob;
+                        residual_vnode->obs_probs[common_qnode->particles_[i]->scenario_id] = prob;
                         
                         
                         
                         
                 }
                 
-                for(int i = 0; i < qnode->particles_.size(); i++)
+                for(int i = 0; i < common_qnode->particles_.size(); i++)
                 {
                     if(total_weight > 0) //total weight might be zero for residual node
                     {
-                    residual_vnode->particle_weights[qnode->particles_[i]->scenario_id] = residual_vnode->particle_weights[qnode->particles_[i]->scenario_id]/total_weight;
+                    residual_vnode->particle_weights[common_qnode->particles_[i]->scenario_id] = residual_vnode->particle_weights[common_qnode->particles_[i]->scenario_id]/total_weight;
                     }
                     
                 }
@@ -229,15 +242,71 @@ namespace despot {
         }
         
        
-        
+        }
+        //Copy from populated qnode
+        else{
+            populated_qnode = common_qnode->parent()->Child(qnode->edge());
+            std::map<OBS_TYPE, VNode*>& populated_children = populated_qnode->children();
+            for (std::map<OBS_TYPE, VNode*>::iterator it = populated_children.begin();
+		it != populated_children.end(); it++)
+            {
+                OBS_TYPE obs = it->first;
+                VNode* vnode = new VNode(parent->depth() + 1,
+			qnode, common_qnode, obs);
+                vnode->observation_particle_size = 1;
+		logd << " New node created!" << std::endl;
+		children[obs] = vnode;
+                vnode->obs_probs_holder = it->second;
+                //vnode->obs_probs.insert(vnode->obs_probs.begin(),it->second->obs_probs.begin(), it->second->obs_probs.end());
+                double total_weight = 0;
+                for(int i = 0; i < common_qnode->particles_.size();i++)
+                {
+                    double prob = vnode->obs_probs_holder->obs_probs[common_qnode->particles_[i]->scenario_id];
+                    
+                   // std::cout << "Obs Prob: for obs " <<  obs << " " << prob << " ";
+                
+		 // Terminal state is not required to be explicitly represented and may not have any observation
+			vnode->particle_weights[common_qnode->particles_[i]->scenario_id] = parent->particle_weights[common_qnode->particles_[i]->scenario_id]* prob;
+			total_weight += vnode->particle_weights[common_qnode->particles_[i]->scenario_id];
+                        //Total weight should not be zero as one particle actually produced that observation
+                        
+                        
+                        
+                }
+                for(int i = 0; i < common_qnode->particles_.size(); i++)
+                {
+                    if(total_weight > 0) //total weight might be zero if particle weight is zero
+                    {
+                    vnode->particle_weights[common_qnode->particles_[i]->scenario_id] = vnode->particle_weights[common_qnode->particles_[i]->scenario_id]/total_weight;
+                    }
+                    
+                    
+                }
+                
+                logd << " Creating node for obs " << obs << std::endl;
+		
+
+		history.Add(qnode->edge(), obs);
+		DESPOT::InitBounds(vnode, lb, ub, streams, history, learned_lower_bound, statistics, o_helper);
+		history.RemoveLast();
+                
+		logd << " New node's bounds: (" << vnode->lower_bound() << vnode->lower_bound_alpha_vector<< ", "
+			<< vnode->upper_bound() << vnode->upper_bound_alpha_vector << ")" << std::endl;
+ 
+                
+            }
+            
+        }
        
                
         
         //std::cout << "Upper bound = " << upper_bound - step_reward<< " Num particles pushed " << num_particles_pushed << std::endl;
+        qnode->lower_bound_alpha_vector.resize(Globals::config.num_scenarios,0);
+        qnode->upper_bound_alpha_vector.resize(Globals::config.num_scenarios,0);
         qnode->lower_bound(Globals::NEG_INFTY);
         qnode->upper_bound(Globals::POS_INFTY);
         DespotWithAlphaFunctionUpdate::Update(qnode);
-	qnode->step_reward = step_reward;
+	//qnode->step_reward = step_reward;
 	//qnode->lower_bound(lower_bound);
 	//qnode->upper_bound(upper_bound);
 	//qnode->utility_upper_bound = upper_bound + Globals::config.pruning_constant;
@@ -343,7 +412,7 @@ void DespotWithAlphaFunctionUpdate::Update(QNode* qnode) {
         
             
         //obs_probablity_sum.resize(Globals::config.num_scenarios,0);
-        
+    QNode* common_qnode = qnode->parent()->CommonChild(qnode->edge());
         std::vector<double> lower_bound_vector;
         std::vector<double> upper_bound_vector;
         lower_bound_vector.resize(Globals::config.num_scenarios, 0);
@@ -361,9 +430,9 @@ void DespotWithAlphaFunctionUpdate::Update(QNode* qnode) {
                     for (int i = 0; i < Globals::config.num_scenarios; i++)
                     {
                         //int particle_index = qnode->particles_[i]->scenario_id;
-                        lower_bound_vector[i] += vnode->obs_probs[i]*  
+                        lower_bound_vector[i] += vnode->obs_probs_holder->obs_probs[i]*  
                                  (*vnode->lower_bound_alpha_vector.value_array)[i];
-                        upper_bound_vector[i] += vnode->obs_probs[i]*(*vnode->upper_bound_alpha_vector.value_array)[i];
+                        upper_bound_vector[i] += vnode->obs_probs_holder->obs_probs[i]*(*vnode->upper_bound_alpha_vector.value_array)[i];
                         
                         //obs_probablity_sum[i] = obs_probablity_sum[i] + vnode->obs_probs[i];
                         //std::cout << "Scenario " << i << " " << lower_bound_vector[i]  << "," << upper_bound_vector[i] << std::endl;
@@ -387,8 +456,8 @@ void DespotWithAlphaFunctionUpdate::Update(QNode* qnode) {
                 //{
                    // std::cout << i << " " << obs_probablity_sum[i] << std::endl;
                 //int particle_index = qnode->particles_[i]->scenario_id;
-                lower_bound_vector[i] = lower_bound_vector[i] + qnode->step_reward_vector[i];
-                upper_bound_vector[i] = upper_bound_vector[i] + qnode->step_reward_vector[i];
+                lower_bound_vector[i] = lower_bound_vector[i] + common_qnode->step_reward_vector[i];
+                upper_bound_vector[i] = upper_bound_vector[i] + common_qnode->step_reward_vector[i];
                 //}
                 //else
                 //{
