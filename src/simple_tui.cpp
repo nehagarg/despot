@@ -23,7 +23,9 @@ Solver *SimpleTUI::InitializeSolver(DSPOMDP *model, string solver_type,
   // DESPOT or its default policy
   if (solver_type == "DESPOT" ||
       solver_type == "PLB" ||
-      solver_type == "BTDESPOTALPHA") // PLB: particle lower bound
+      solver_type == "BTDESPOTALPHA" ||
+      solver_type == "BTDESPOTALPHAEU") // PLB: particle lower bound
+      //BTDESPOTALPHAEU: Btdespot alpha with estimated upper bound
   {
     string blbtype = options[E_BLBTYPE] ? options[E_BLBTYPE].arg : "DEFAULT";
     string lbtype = options[E_LBTYPE] ? options[E_LBTYPE].arg : "DEFAULT";
@@ -43,10 +45,14 @@ Solver *SimpleTUI::InitializeSolver(DSPOMDP *model, string solver_type,
       {
         solver = new DESPOT(model, lower_bound, upper_bound);
       }
-      if (solver_type == "BTDESPOTALPHA")
+      if (solver_type == "BTDESPOTALPHA" || solver_type == "BTDESPOTALPHAEU")
       {
         solver = new DespotWithAlphaFunctionUpdate(model, lower_bound, upper_bound);
         Globals::config.track_alpha_vector = true;
+        if(solver_type == "BTDESPOTALPHAEU")
+        {
+            Globals::config.estimate_upper_bound = true;
+        }
       }
     } else
       solver = lower_bound;

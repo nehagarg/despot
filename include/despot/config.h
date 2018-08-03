@@ -19,6 +19,7 @@ struct Config {
 	double noise;
 	bool silence;
         bool track_alpha_vector;
+        bool estimate_upper_bound;
 
 	Config() :
 		search_depth(90),
@@ -33,7 +34,8 @@ struct Config {
 		max_policy_sim_len(90),
 		noise(0.1),
 		silence(false), 
-                track_alpha_vector(false){
+                track_alpha_vector(false),
+                estimate_upper_bound(false){
 	}
 };
 

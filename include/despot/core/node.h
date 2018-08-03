@@ -37,7 +37,7 @@ protected:
 	ValuedAction default_move_; // Value and action given by default policy
 	double lower_bound_;
 	double upper_bound_;
-
+        
 	// For POMCP
 	int count_; // Number of visits on the node
 	double value_; // Value of the node
@@ -51,8 +51,12 @@ public:
         std::vector<double> obs_probs; //used in despot with alpha function update
         //std::vector<double> upper_bound_alpha_vector_; //used in despot with alpha function update to store default upper bound vector for root node
         std::vector<double> lower_bound_alpha_vector_; //used in despot with alpha function to store best sibling lower bound vector
+        std::vector<double> estimated_upper_bound_alpha_vector_; //used in despot with alpha function to store estimated upper bound vector from sibling
         ValuedAction lower_bound_alpha_vector; //used in despot with alpha function update
         ValuedAction upper_bound_alpha_vector; //used in despot with alpha function update
+        ValuedAction estimated_upper_bound_alpha_vector; //used in despot with alpha function update
+        double estimated_upper_bound_;
+        bool has_estimated_upper_bound_value;
         bool extra_node; //used in despot with alpha function update
         VNode* obs_probs_holder;  //Used in despot with alpha function update
         PyObject* rnn_state; //Used in DESPOTWITHDEFAULTLEARNEDPOLICY
@@ -135,7 +139,7 @@ protected:
         
 	double lower_bound_;
 	double upper_bound_;
-
+        
 	// For POMCP
 	int count_; // Number of visits on the node
 	double value_; // Value of the node
@@ -150,9 +154,12 @@ public:
         std::vector<QNode*> common_children_; //used in despot with alpha function update
         std::vector<State*> particles_; //Used for alpha function update algorithm
         std::vector<double> upper_bound_alpha_vector; //used in despot with alpha function update
+        std::vector<double> estimated_upper_bound_alpha_vector; //used in despot with alpha function update
         std::vector<double> lower_bound_alpha_vector; //used in despot with alpha function update
         std::vector<double> default_upper_bound_alpha_vector;
         ValuedAction default_move;
+        double estimated_upper_bound_;
+        bool has_estimated_upper_bound_value;
         
 	QNode(VNode* parent, int edge);
         QNode(std::vector<State*>& particles);

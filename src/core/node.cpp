@@ -22,7 +22,8 @@ VNode::VNode(vector<State*>& particles, int depth, QNode* parent,
         rnn_output(NULL),
         extra_node(false),
         common_parent_(NULL),
-        obs_probs_holder(NULL){
+        obs_probs_holder(NULL),
+        has_estimated_upper_bound_value(false){
     logd << "Constructed vnode with " << particles_.size() << " particles"
 		<< endl;
 	for (int i = 0; i < particles_.size(); i++) {
@@ -56,7 +57,8 @@ VNode::VNode(vector<State*>& particles, int depth, QNode* parent,
         rnn_state(NULL),
             rnn_output(NULL),
             extra_node(false),
-            obs_probs_holder(NULL)
+            obs_probs_holder(NULL),
+            has_estimated_upper_bound_value(false)
     {
         particle_weights.resize(Globals::config.num_scenarios, 0);
         //upper_bound_alpha_vector_.resize(Globals::config.num_scenarios, 0);

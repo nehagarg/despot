@@ -58,8 +58,10 @@ VNode* DESPOT::Trial(VNode* root, RandomStreams& streams,
 			statistics->longest_trial_length = cur->depth();
 		}
 
-		ExploitBlockers(cur);
-
+                if(!Globals::config.track_alpha_vector)
+                {
+                    ExploitBlockers(cur);
+                }
 		if (Gap(cur) == 0) {
 			break;
 		}
@@ -195,7 +197,7 @@ VNode* DESPOT::ConstructTree(vector<State*>& particles, RandomStreams& streams,
 		used_time += double(clock() - start) / CLOCKS_PER_SEC;
                 //root->PrintTree();
                 //std::cout << "Backing up" << std::endl;
-		start = clock();
+                start = clock();
 		Backup(cur,o_helper);
                 //root->PrintTree();
 		if (statistics != NULL) {
@@ -319,6 +321,12 @@ void DESPOT::InitUpperBound(VNode* vnode, ScenarioUpperBound* upper_bound,
             upper = vnode->calculate_upper_bound();
             
             vnode->upper_bound_alpha_vector.value = upper;
+            if(Globals::config.estimate_upper_bound)
+            {
+                vnode->estimated_upper_bound_alpha_vector = vnode->upper_bound_alpha_vector;
+                vnode->estimated_upper_bound_ = upper;
+                vnode->has_estimated_upper_bound_value = false;
+            }
             
         }
         else
@@ -660,9 +668,17 @@ QNode* DESPOT::SelectBestUpperBoundNode(VNode* vnode) {
 	double upperstar = Globals::NEG_INFTY;
 	for (int action = 0; action < vnode->children().size(); action++) {
 		QNode* qnode = vnode->Child(action);
- //               std::cout << "(" << action << "," << qnode->upper_bound() << "," << qnode->lower_bound() << ") " ;
-		if (qnode->upper_bound() > upperstar) {
-			upperstar = qnode->upper_bound();
+ //               std::cout << "(" << action << "," << qnode->upper_bound() << "," << qnode->lower_bound() << ") " ;            
+                double qnode_upper_bound = qnode->upper_bound();
+                if(Globals::config.estimate_upper_bound)
+                {
+                    if(qnode->has_estimated_upper_bound_value)
+                    {
+                        qnode_upper_bound = (qnode->upper_bound() + qnode->estimated_upper_bound_)/2;
+                    }
+                }
+		if (qnode_upper_bound > upperstar) {
+			upperstar = qnode_upper_bound;
 			astar = action;
 		}
 	}
