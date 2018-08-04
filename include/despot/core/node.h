@@ -106,6 +106,7 @@ public:
 	double lower_bound() const;
 	void upper_bound(double value);
 	double upper_bound() const;
+        double estimated_upper_bound() const;
         double calculate_upper_bound() const;
         double calculate_lower_bound() const;
         
@@ -180,6 +181,7 @@ public:
 	double lower_bound() const;
 	void upper_bound(double value);
 	double upper_bound() const;
+        double estimated_upper_bound() const;
         double calculate_upper_bound() const;
         double calculate_lower_bound() const;
         

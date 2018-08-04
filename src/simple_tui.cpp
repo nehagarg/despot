@@ -24,7 +24,8 @@ Solver *SimpleTUI::InitializeSolver(DSPOMDP *model, string solver_type,
   if (solver_type == "DESPOT" ||
       solver_type == "PLB" ||
       solver_type == "BTDESPOTALPHA" ||
-      solver_type == "BTDESPOTALPHAEU") // PLB: particle lower bound
+      solver_type == "BTDESPOTALPHAEU" ||
+      solver_type == "BTDESPOTALPHAUCT"    ) // PLB: particle lower bound
       //BTDESPOTALPHAEU: Btdespot alpha with estimated upper bound
   {
     string blbtype = options[E_BLBTYPE] ? options[E_BLBTYPE].arg : "DEFAULT";
@@ -34,7 +35,10 @@ Solver *SimpleTUI::InitializeSolver(DSPOMDP *model, string solver_type,
 
     logi << "Created lower bound " << typeid(*lower_bound).name() << endl;
 
-    if (solver_type == "DESPOT" || solver_type == "BTDESPOTALPHA" || solver_type == "BTDESPOTALPHAEU") {
+    if (solver_type == "DESPOT" || 
+            solver_type == "BTDESPOTALPHA" || 
+            solver_type == "BTDESPOTALPHAEU" ||
+            solver_type == "BTDESPOTALPHAUCT"  ) {
       string bubtype = options[E_BUBTYPE] ? options[E_BUBTYPE].arg : "DEFAULT";
       string ubtype = options[E_UBTYPE] ? options[E_UBTYPE].arg : "DEFAULT";
       ScenarioUpperBound *upper_bound =
@@ -45,13 +49,19 @@ Solver *SimpleTUI::InitializeSolver(DSPOMDP *model, string solver_type,
       {
         solver = new DESPOT(model, lower_bound, upper_bound);
       }
-      if (solver_type == "BTDESPOTALPHA" || solver_type == "BTDESPOTALPHAEU")
+      if (solver_type == "BTDESPOTALPHA" ||
+              solver_type == "BTDESPOTALPHAEU" ||
+             solver_type == "BTDESPOTALPHAUCT" )
       {
         solver = new DespotWithAlphaFunctionUpdate(model, lower_bound, upper_bound);
         Globals::config.track_alpha_vector = true;
         if(solver_type == "BTDESPOTALPHAEU")
         {
             Globals::config.estimate_upper_bound = true;
+        }
+        if(solver_type == "BTDESPOTALPHAUCT")
+        {
+            Globals::config.use_uct_bound = true;
         }
       }
     } else

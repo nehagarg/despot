@@ -20,6 +20,7 @@ struct Config {
 	bool silence;
         bool track_alpha_vector;
         bool estimate_upper_bound;
+        bool use_uct_bound;
 
 	Config() :
 		search_depth(90),
@@ -35,7 +36,8 @@ struct Config {
 		noise(0.1),
 		silence(false), 
                 track_alpha_vector(false),
-                estimate_upper_bound(false){
+                estimate_upper_bound(false),
+                use_uct_bound(false){
 	}
 };
 

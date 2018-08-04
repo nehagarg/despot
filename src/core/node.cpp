@@ -23,7 +23,8 @@ VNode::VNode(vector<State*>& particles, int depth, QNode* parent,
         extra_node(false),
         common_parent_(NULL),
         obs_probs_holder(NULL),
-        has_estimated_upper_bound_value(false){
+        has_estimated_upper_bound_value(false),
+        count_(0){
     logd << "Constructed vnode with " << particles_.size() << " particles"
 		<< endl;
 	for (int i = 0; i < particles_.size(); i++) {
@@ -58,7 +59,8 @@ VNode::VNode(vector<State*>& particles, int depth, QNode* parent,
             rnn_output(NULL),
             extra_node(false),
             obs_probs_holder(NULL),
-            has_estimated_upper_bound_value(false)
+            has_estimated_upper_bound_value(false),
+            count_(0)
     {
         particle_weights.resize(Globals::config.num_scenarios, 0);
         //upper_bound_alpha_vector_.resize(Globals::config.num_scenarios, 0);
@@ -297,7 +299,19 @@ void VNode::upper_bound(double value) {
 
 double VNode::upper_bound() const {
 	return upper_bound_;
-}
+    }
+
+    double VNode::estimated_upper_bound() const {
+        if(has_estimated_upper_bound_value)
+        {
+            return estimated_upper_bound_;
+        }
+        else
+        {
+            return upper_bound_;
+        }
+    }
+
 
 bool VNode::IsLeaf() {
 	return children_.size() == 0;
@@ -431,14 +445,22 @@ void VNode::PrintTree(int depth, ostream& os) {
 	if (this->depth() == 0) {
 		os << "d - default value" << endl
 			<< "l - lower bound" << endl
-			<< "u - upper bound" << endl
-			<< "r - totol weighted one step reward" << endl
+			<< "u - upper bound" << endl;
+                if(Globals::config.estimate_upper_bound)
+                {
+                    os << "eu - estimated upper bound" << endl;
+                }
+			os << "r - totol weighted one step reward" << endl
 			<< "w - total particle weight" << endl;
 	}
 
 	os << "(" << "d:" << this->default_move().value <<
-		" l:" << this->lower_bound() << ", u:" << this->upper_bound()
-		<< ", w:" << this->Weight() << ", weu:" << DESPOT::WEU(this)
+		" l:" << this->lower_bound() << ", u:" << this->upper_bound();
+        if(Globals::config.estimate_upper_bound)
+                {
+                    os << ", eu" << this->estimated_upper_bound();
+                }
+		os << ", w:" << this->Weight() << ", weu:" << DESPOT::WEU(this)
 		<< ")";
         for (int i = 0; i < this->particles_.size(); i++) {
             if(i==this->observation_particle_size)
@@ -465,8 +487,12 @@ void VNode::PrintTree(int depth, ostream& os) {
 		os << repeat("|   ", this->depth()) << "a="
 			<< qnode->edge() << ": "
 			<< "(d:" << qnode->default_value << ", l:" << qnode->lower_bound()
-			<< ", u:" << qnode->upper_bound()
-			<< ", r:" << qnode->step_reward << ")" << endl;
+			<< ", u:" << qnode->upper_bound();
+                if(Globals::config.estimate_upper_bound)
+                {
+                    os << ", eu" << qnode->estimated_upper_bound();
+                }
+			os<< ", r:" << qnode->step_reward << ")" << endl;
 
 		for (int i = 0; i < labels.size(); i++) {
 			if (depth == -1 || this->depth() + 1 <= depth) {
@@ -485,11 +511,12 @@ void VNode::PrintTree(int depth, ostream& os) {
 QNode::QNode(VNode* parent, int edge) :
 	parent_(parent),
 	edge_(edge),
-	vstar(NULL) {
+	vstar(NULL),
+        count_(0){
 }
 
 QNode::QNode(std::vector<State*>& particles):
-particles_(particles), parent_(NULL)
+particles_(particles), parent_(NULL),count_(0)
 {
     
 }
@@ -572,7 +599,16 @@ void QNode::upper_bound(double value) {
 double QNode::upper_bound() const {
 	return upper_bound_;
 }
-
+ double QNode::estimated_upper_bound() const {
+        if(has_estimated_upper_bound_value)
+        {
+            return estimated_upper_bound_;
+        }
+        else
+        {
+            return upper_bound_;
+        }
+    }
 void QNode::Add(double val) {
 	value_ = (value_ * count_ + val) / (count_ + 1);
 	count_++;

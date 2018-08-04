@@ -81,6 +81,7 @@ public:
                 DespotStaticFunctionOverrideHelper* o_helper=NULL);
 
 public:
+        static double exploration_constant_;
 	static VNode* Trial(VNode* root, RandomStreams& streams,
 		ScenarioLowerBound* lower_bound, ScenarioUpperBound* upper_bound,
 		const DSPOMDP* model, History& history, SearchStatistics* statistics =
