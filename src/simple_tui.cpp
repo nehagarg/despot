@@ -34,7 +34,7 @@ Solver *SimpleTUI::InitializeSolver(DSPOMDP *model, string solver_type,
 
     logi << "Created lower bound " << typeid(*lower_bound).name() << endl;
 
-    if (solver_type == "DESPOT" || solver_type == "BTDESPOTALPHA" ) {
+    if (solver_type == "DESPOT" || solver_type == "BTDESPOTALPHA" || solver_type == "BTDESPOTALPHAEU") {
       string bubtype = options[E_BUBTYPE] ? options[E_BUBTYPE].arg : "DEFAULT";
       string ubtype = options[E_UBTYPE] ? options[E_UBTYPE].arg : "DEFAULT";
       ScenarioUpperBound *upper_bound =

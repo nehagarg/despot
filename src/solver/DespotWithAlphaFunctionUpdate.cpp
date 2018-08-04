@@ -420,6 +420,7 @@ void DespotWithAlphaFunctionUpdate::Update(VNode* vnode) {
                     }
                 }
 	}
+        //std::cout << "Update Estimated value " <<  vnode->has_estimated_upper_bound_value << " array size " << vnode->estimated_upper_bound_alpha_vector.value_array->size() << std::endl;
 	/*if (utility_upper < vnode->utility_upper_bound) {
 		vnode->utility_upper_bound = utility_upper;
 	}*/
@@ -561,7 +562,12 @@ void DespotWithAlphaFunctionUpdate::Update(QNode* qnode) {
                         qnode->estimated_upper_bound_ = estimated_upper;
                         qnode->estimated_upper_bound_alpha_vector.insert(qnode->estimated_upper_bound_alpha_vector.begin(), estimated_upper_bound_vector.begin(), estimated_upper_bound_vector.end());
                     }
+                    else
+                    {
+                        qnode->has_estimated_upper_bound_value = false;
+                    }
                 }
+                
             }
         
 	
@@ -600,7 +606,8 @@ void DespotWithAlphaFunctionUpdate::Update(QNode* qnode) {
                 if(Globals::config.estimate_upper_bound)
                 {
                     //If lower bound exceeds estimated value, reset estimated value to upper bound
-                    if(sibling_node->has_estimated_upper_bound_value && qnode_lower_bound > sibling_node->estimated_upper_bound_)
+                    if(sibling_node->has_estimated_upper_bound_value && 
+                       (qnode_lower_bound > sibling_node->estimated_upper_bound_))
                     {
                         sibling_node->has_estimated_upper_bound_value = false;
                     }
@@ -633,6 +640,7 @@ void DespotWithAlphaFunctionUpdate::Update(QNode* qnode) {
                 }
                
         }
+        //std::cout << "Udate sibling Estimated value " <<  sibling_node->has_estimated_upper_bound_value << " array size " << sibling_node->estimated_upper_bound_alpha_vector.value_array->size() << std::endl;
     }
 
 
